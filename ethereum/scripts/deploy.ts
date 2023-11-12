@@ -23,6 +23,7 @@ async function main() {
     .option("--create2-salt <create2-salt>")
     .option("--diamond-upgrade-init <version>")
     .option("--only-verifier")
+    .option("--validium")
     .action(async (cmd) => {
       const deployWallet = cmd.privateKey
         ? new Wallet(cmd.privateKey, provider)
@@ -81,7 +82,7 @@ async function main() {
 
       await deployer.deployGovernance(create2Salt, { gasPrice, nonce });
       await deployer.deployAllowList(create2Salt, { gasPrice, nonce: nonce + 1 });
-      await deployer.deployZkSyncContract(create2Salt, gasPrice, nonce + 2);
+      await deployer.deployZkSyncContract(create2Salt, gasPrice, nonce + 2, cmd.validium);
       await deployer.deployBridgeContracts(create2Salt, gasPrice); // Do not pass nonce, since it was increment after deploying zkSync contracts
       await deployer.deployWethBridgeContracts(create2Salt, gasPrice);
       await deployer.deployValidatorTimelock(create2Salt, { gasPrice });
