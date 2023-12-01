@@ -295,8 +295,8 @@ contract MailboxFacet is Base, IMailbox {
         IAllowList.Deposit memory limitData = IAllowList(s.allowList).getTokenDepositLimitData(address(0)); // address(0) denotes the ETH
         if (!limitData.depositLimitation) return; // no deposit limitation is placed for ETH
 
-        require(s.totalDepositedAmountPerUser[_depositor] + _amount <= limitData.depositCap, "d2");
-        s.totalDepositedAmountPerUser[_depositor] += _amount;
+        require(s.totalDepositedAmountPerUser[address(0)][_depositor] + _amount <= limitData.depositCap, "d2");
+        s.totalDepositedAmountPerUserp[address(0)][_depositor] += _amount;
     }
 
     function _requestL2Transaction(
