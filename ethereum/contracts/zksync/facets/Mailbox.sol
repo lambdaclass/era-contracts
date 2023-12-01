@@ -191,7 +191,7 @@ contract MailboxFacet is Base, IMailbox {
         bytes calldata _message,
         bytes32[] calldata _merkleProof
     ) external override nonReentrant senderCanCallFunction(s.allowList) {
-        // #def TOKEN_TYPE 'ERC20'
+        // #def TOKEN_TYPE 'ETH'
         // #if TOKEN_TYPE == 'ETH'
         require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "jj");
 
@@ -201,11 +201,11 @@ contract MailboxFacet is Base, IMailbox {
             data: _message
         });
 
-        (address _l1WithdrawReceiver, address _, uint256 _amount) = _parseL2WithdrawalMessage(_message);
-
-        bool proofValid = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
-        require(proofValid, "pi"); // Failed to verify that withdrawal was actually initialized on L2
-
+        (address _l1WithdrawReceiver, address _t, uint256 _amount) = _parseL2WithdrawalMessage(_message);
+        {
+            bool proofValid = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
+            require(proofValid, "pi"); // Failed to verify that withdrawal was actually initialized on L2
+        }
         s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
         _withdrawFunds(_l1WithdrawReceiver, _amount);
 
@@ -296,7 +296,7 @@ contract MailboxFacet is Base, IMailbox {
         if (!limitData.depositLimitation) return; // no deposit limitation is placed for ETH
 
         require(s.totalDepositedAmountPerUser[address(0)][_depositor] + _amount <= limitData.depositCap, "d2");
-        s.totalDepositedAmountPerUserp[address(0)][_depositor] += _amount;
+        s.totalDepositedAmountPerUser[address(0)][_depositor] += _amount;
     }
 
     function _requestL2Transaction(
@@ -423,7 +423,7 @@ contract MailboxFacet is Base, IMailbox {
     function _parseL2WithdrawalMessage(
         bytes memory _message
     ) internal pure returns (address l1Receiver, address l1Token, uint256 amount) {
-        // #def TOKEN_TYPE 'ERC20'
+        // #def TOKEN_TYPE 'ETH'
         // #if TOKEN_TYPE == 'ETH'
         // We check that the message is long enough to read the data.
         // Please note that there are two versions of the message:
@@ -441,7 +441,7 @@ contract MailboxFacet is Base, IMailbox {
         require(bytes4(functionSignature) == this.finalizeEthWithdrawal.selector, "is");
 
         (l1Receiver, offset) = UnsafeBytes.readAddress(_message, offset);
-        (l1Token, offset) = "0x00";
+        l1Token = 0x0000000000000000000000000000000000000000;
         (amount, offset) = UnsafeBytes.readUint256(_message, offset);
 
         // #elif TOKEN_TYPE == 'ERC20'
