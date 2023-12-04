@@ -31,10 +31,6 @@ contract MailboxFacet is Base, IMailbox {
     string public constant override getName = "MailboxFacet";
     event WithdrawalFinalized(address indexed to, address indexed l1Token, uint256 amount);
 
-    /// @dev A mapping L2 batch number => message number => flag
-    /// @dev Used to indicate that zkSync L2 -> L1 message was already processed
-    mapping(uint256 => mapping(uint256 => bool)) public isWithdrawalFinalized;
-
     /// @notice Prove that a specific arbitrary-length message was sent in a specific L2 batch number
     /// @param _batchNumber The executed L2 batch number in which the message appeared
     /// @param _index The position in the L2 logs Merkle tree of the l2Log that was sent with the message
@@ -191,7 +187,7 @@ contract MailboxFacet is Base, IMailbox {
         bytes calldata _message,
         bytes32[] calldata _merkleProof
     ) external override nonReentrant senderCanCallFunction(s.allowList) {
-        // #def TOKEN_TYPE 'ETH'
+        // #def TOKEN_TYPE 'ERC20'
         // #if TOKEN_TYPE == 'ETH'
         require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "jj");
 
@@ -211,7 +207,7 @@ contract MailboxFacet is Base, IMailbox {
 
         emit EthWithdrawalFinalized(_l1WithdrawReceiver, _amount);
         // #elif TOKEN_TYPE == 'ERC20'
-        require(!isWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "pw");
+        require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "pw");
 
         L2Message memory l2ToL1Message = L2Message({
             txNumberInBatch: _l2TxNumberInBatch,
@@ -226,7 +222,7 @@ contract MailboxFacet is Base, IMailbox {
             require(success, "nq");
         }
 
-        isWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
+        s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
         // Withdraw funds
         IERC20(l1Token).safeTransfer(l1Receiver, amount);
 
@@ -423,7 +419,7 @@ contract MailboxFacet is Base, IMailbox {
     function _parseL2WithdrawalMessage(
         bytes memory _message
     ) internal pure returns (address l1Receiver, address l1Token, uint256 amount) {
-        // #def TOKEN_TYPE 'ETH'
+        // #def TOKEN_TYPE 'ERC20'
         // #if TOKEN_TYPE == 'ETH'
         // We check that the message is long enough to read the data.
         // Please note that there are two versions of the message:
