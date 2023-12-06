@@ -78,6 +78,7 @@ interface IMailbox is IBase {
         address sender;
         uint256 txId;
         uint256 l2Value;
+        address l1Token;
         address contractAddressL2;
         uint64 expirationTimestamp;
         uint256 l2GasLimit;

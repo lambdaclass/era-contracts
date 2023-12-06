@@ -251,6 +251,7 @@ contract MailboxFacet is Base, IMailbox {
     function requestL2Transaction(
         address _contractL2,
         uint256 _l2Value,
+        address _l1Token,
         bytes calldata _calldata,
         uint256 _l2GasLimit,
         uint256 _l2GasPerPubdataByteLimit,
@@ -273,11 +274,12 @@ contract MailboxFacet is Base, IMailbox {
 
         // The L1 -> L2 transaction may be failed and funds will be sent to the `_refundRecipient`,
         // so we use `msg.value` instead of `_l2Value` as the bridged amount.
-        _verifyDepositLimit(msg.sender, msg.value);
+        _verifyDepositLimit(_l1Token, msg.sender, msg.value);
         canonicalTxHash = _requestL2Transaction(
             sender,
             _contractL2,
             _l2Value,
+            _l1Token,
             _calldata,
             _l2GasLimit,
             _l2GasPerPubdataByteLimit,
@@ -287,18 +289,20 @@ contract MailboxFacet is Base, IMailbox {
         );
     }
 
-    function _verifyDepositLimit(address _depositor, uint256 _amount) internal {
-        IAllowList.Deposit memory limitData = IAllowList(s.allowList).getTokenDepositLimitData(address(0)); // address(0) denotes the ETH
-        if (!limitData.depositLimitation) return; // no deposit limitation is placed for ETH
-
-        require(s.totalDepositedAmountPerUser[address(0)][_depositor] + _amount <= limitData.depositCap, "d2");
-        s.totalDepositedAmountPerUser[address(0)][_depositor] += _amount;
+    /// @dev Verify the deposit limit is reached to its cap or not
+    function _verifyDepositLimit(address _l1Token, address _depositor, uint256 _amount) internal {
+        IAllowList.Deposit memory limitData = IAllowList(s.allowList).getTokenDepositLimitData(_l1Token);
+        if (!limitData.depositLimitation) return; // no deposit limitation is placed for this token
+        
+        require(s.totalDepositedAmountPerUser[_l1Token][_depositor] + _amount <= limitData.depositCap, "d1");
+        s.totalDepositedAmountPerUser[_l1Token][_depositor] += _amount;
     }
 
     function _requestL2Transaction(
         address _sender,
         address _contractAddressL2,
         uint256 _l2Value,
+        address _l1Token,
         bytes calldata _calldata,
         uint256 _l2GasLimit,
         uint256 _l2GasPerPubdataByteLimit,
@@ -331,6 +335,7 @@ contract MailboxFacet is Base, IMailbox {
         params.sender = _sender;
         params.txId = txId;
         params.l2Value = _l2Value;
+        params.l1Token = _l1Token;
         params.contractAddressL2 = _contractAddressL2;
         params.expirationTimestamp = expirationTimestamp;
         params.l2GasLimit = _l2GasLimit;
