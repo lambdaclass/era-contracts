@@ -251,7 +251,6 @@ contract MailboxFacet is Base, IMailbox {
     function requestL2Transaction(
         address _contractL2,
         uint256 _l2Value,
-        address _l1Token,
         bytes calldata _calldata,
         uint256 _l2GasLimit,
         uint256 _l2GasPerPubdataByteLimit,
@@ -274,12 +273,14 @@ contract MailboxFacet is Base, IMailbox {
 
         // The L1 -> L2 transaction may be failed and funds will be sent to the `_refundRecipient`,
         // so we use `msg.value` instead of `_l2Value` as the bridged amount.
-        _verifyDepositLimit(_l1Token, msg.sender, msg.value);
+        {
+            address _l1Token = 0x39918208e6ba5AFB22268B541fC679F70ac255f0;
+            _verifyDepositLimit(_l1Token, msg.sender, 10000000000000);
+        }
         canonicalTxHash = _requestL2Transaction(
             sender,
             _contractL2,
             _l2Value,
-            _l1Token,
             _calldata,
             _l2GasLimit,
             _l2GasPerPubdataByteLimit,
@@ -293,7 +294,7 @@ contract MailboxFacet is Base, IMailbox {
     function _verifyDepositLimit(address _l1Token, address _depositor, uint256 _amount) internal {
         IAllowList.Deposit memory limitData = IAllowList(s.allowList).getTokenDepositLimitData(_l1Token);
         if (!limitData.depositLimitation) return; // no deposit limitation is placed for this token
-        
+
         require(s.totalDepositedAmountPerUser[_l1Token][_depositor] + _amount <= limitData.depositCap, "d1");
         s.totalDepositedAmountPerUser[_l1Token][_depositor] += _amount;
     }
@@ -302,7 +303,6 @@ contract MailboxFacet is Base, IMailbox {
         address _sender,
         address _contractAddressL2,
         uint256 _l2Value,
-        address _l1Token,
         bytes calldata _calldata,
         uint256 _l2GasLimit,
         uint256 _l2GasPerPubdataByteLimit,
@@ -335,12 +335,11 @@ contract MailboxFacet is Base, IMailbox {
         params.sender = _sender;
         params.txId = txId;
         params.l2Value = _l2Value;
-        params.l1Token = _l1Token;
         params.contractAddressL2 = _contractAddressL2;
         params.expirationTimestamp = expirationTimestamp;
         params.l2GasLimit = _l2GasLimit;
         params.l2GasPricePerPubdata = _l2GasPerPubdataByteLimit;
-        params.valueToMint = msg.value;
+        params.valueToMint = 10000000000000;
         params.refundRecipient = refundRecipient;
 
         canonicalTxHash = _writePriorityOp(params, _calldata, _factoryDeps);
