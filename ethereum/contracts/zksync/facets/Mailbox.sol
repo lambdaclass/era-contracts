@@ -271,12 +271,17 @@ contract MailboxFacet is Base, IMailbox {
         // CHANGING THIS CONSTANT SHOULD BE A CLIENT-SIDE CHANGE.
         require(_l2GasPerPubdataByteLimit == REQUIRED_L2_GAS_PRICE_PER_PUBDATA, "qp");
 
-        // The L1 -> L2 transaction may be failed and funds will be sent to the `_refundRecipient`,
-        // so we use `msg.value` instead of `_l2Value` as the bridged amount.
+        // Comment this in `zk init` command because it will fail.
+        // Run `zk server` and turn it down
+        // Uncomment this, paste the l1Token address and run `zk contract redeploy` command.
+        // This way the wallet will have funds to deposit.
         {
-            address _l1Token = 0x39918208e6ba5AFB22268B541fC679F70ac255f0;
-            _verifyDepositLimit(_l1Token, msg.sender, 10000000000000);
+            address _l1Token = 0x2DC6e0B0B8C8EdD9Ce1f7b7F27fd11a782C553F4;
+            uint256 amount = _depositFunds(msg.sender, IERC20(_l1Token), 10000000000000000000000);
         }
+
+        // // The L1 -> L2 transaction may be failed and funds will be sent to the `_refundRecipient`,
+        // // so we use `msg.value` instead of `_l2Value` as the bridged amount.
         canonicalTxHash = _requestL2Transaction(
             sender,
             _contractL2,
@@ -288,6 +293,16 @@ contract MailboxFacet is Base, IMailbox {
             false,
             _refundRecipient
         );
+    }
+
+    /// @dev Transfers tokens from the depositor address to the smart contract address
+    /// @return The difference between the contract balance before and after the transferring of funds
+    function _depositFunds(address _from, IERC20 _token, uint256 _amount) internal returns (uint256) {
+        uint256 balanceBefore = _token.balanceOf(address(this));
+        _token.safeTransferFrom(_from, address(this), _amount);
+        uint256 balanceAfter = _token.balanceOf(address(this));
+
+        return balanceAfter - balanceBefore;
     }
 
     /// @dev Verify the deposit limit is reached to its cap or not
@@ -339,7 +354,7 @@ contract MailboxFacet is Base, IMailbox {
         params.expirationTimestamp = expirationTimestamp;
         params.l2GasLimit = _l2GasLimit;
         params.l2GasPricePerPubdata = _l2GasPerPubdataByteLimit;
-        params.valueToMint = 10000000000000;
+        params.valueToMint = 10000000000000000000000;
         params.refundRecipient = refundRecipient;
 
         canonicalTxHash = _writePriorityOp(params, _calldata, _factoryDeps);
