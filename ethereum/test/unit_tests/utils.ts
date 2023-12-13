@@ -84,6 +84,7 @@ export async function requestExecute(
   return await mailbox.requestL2Transaction(
     to,
     l2Value,
+    0,
     calldata,
     l2GasLimit,
     REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

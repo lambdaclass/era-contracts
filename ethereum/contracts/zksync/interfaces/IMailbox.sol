@@ -121,6 +121,7 @@ interface IMailbox is IBase {
     function requestL2Transaction(
         address _contractL2,
         uint256 _l2Value,
+        uint256 _amount,
         bytes calldata _calldata,
         uint256 _l2GasLimit,
         uint256 _l2GasPerPubdataByteLimit,

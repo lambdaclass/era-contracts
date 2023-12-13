@@ -198,6 +198,7 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, AllowListed, ReentrancyGua
         l2TxHash = zkSync.requestL2Transaction{value: msg.value}(
             l2Bridge,
             0, // L2 msg.value
+            0,
             l2TxCalldata,
             _l2TxGasLimit,
             _l2TxGasPerPubdataByte,

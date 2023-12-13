@@ -147,6 +147,7 @@ async function main() {
         zkSync.requestL2Transaction(
           ethers.constants.AddressZero,
           0,
+          0,
           "0x",
           priorityTxMaxGasLimit,
           REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

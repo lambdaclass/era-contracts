@@ -185,6 +185,7 @@ contract L1WethBridge is IL1Bridge, AllowListed, ReentrancyGuard {
         txHash = zkSync.requestL2Transaction{value: _amount + msg.value}(
             l2Bridge,
             _amount,
+            0,
             l2TxCalldata,
             _l2TxGasLimit,
             _l2TxGasPerPubdataByte,

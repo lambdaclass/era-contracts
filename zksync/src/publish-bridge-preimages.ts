@@ -46,6 +46,7 @@ async function main() {
       const publishL2ERC20BridgeTx = await zkSync.requestL2Transaction(
         ethers.constants.AddressZero,
         0,
+        0,
         "0x",
         PRIORITY_TX_MAX_GAS_LIMIT,
         REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

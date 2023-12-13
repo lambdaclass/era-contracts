@@ -251,18 +251,20 @@ contract MailboxFacet is Base, IMailbox {
     function requestL2Transaction(
         address _contractL2,
         uint256 _l2Value,
+        uint256 _amount,
         bytes calldata _calldata,
         uint256 _l2GasLimit,
         uint256 _l2GasPerPubdataByteLimit,
         bytes[] calldata _factoryDeps,
         address _refundRecipient
     ) external payable nonReentrant senderCanCallFunction(s.allowList) returns (bytes32 canonicalTxHash) {
-        // Change the sender address if it is a smart contract to prevent address collision between L1 and L2.
-        // Please note, currently zkSync address derivation is different from Ethereum one, but it may be changed in the future.
-        address sender = msg.sender;
-        if (sender != tx.origin) {
-            sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
-        }
+        // // Change the sender address if it is a smart contract to prevent address collision between L1 and L2.
+        // // Please note, currently zkSync address derivation is different from Ethereum one, but it may be changed in the future.
+        // address sender = msg.sender;
+        // if (sender != tx.origin) {
+        //     sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
+        // }
+
 
         // Enforcing that `_l2GasPerPubdataByteLimit` equals to a certain constant number. This is needed
         // to ensure that users do not get used to using "exotic" numbers for _l2GasPerPubdataByteLimit, e.g. 1-2, etc.
@@ -274,9 +276,10 @@ contract MailboxFacet is Base, IMailbox {
         // // The L1 -> L2 transaction may be failed and funds will be sent to the `_refundRecipient`,
         // // so we use `msg.value` instead of `_l2Value` as the bridged amount.
         canonicalTxHash = _requestL2Transaction(
-            sender,
+            msg.sender,
             _contractL2,
             _l2Value,
+            _amount,
             _calldata,
             _l2GasLimit,
             _l2GasPerPubdataByteLimit,
@@ -299,6 +302,7 @@ contract MailboxFacet is Base, IMailbox {
         address _sender,
         address _contractAddressL2,
         uint256 _l2Value,
+        uint256 _amount,
         bytes calldata _calldata,
         uint256 _l2GasLimit,
         uint256 _l2GasPerPubdataByteLimit,
@@ -307,8 +311,6 @@ contract MailboxFacet is Base, IMailbox {
         address _refundRecipient
     ) internal returns (bytes32 canonicalTxHash) {
         require(_factoryDeps.length <= MAX_NEW_FACTORY_DEPS, "uj");
-        uint64 expirationTimestamp = uint64(block.timestamp + PRIORITY_EXPIRATION); // Safe to cast
-        uint256 txId = s.priorityQueue.getTotalPriorityTxs();
 
         // Here we manually assign fields for the struct to prevent "stack too deep" error
         WritePriorityOpParams memory params;
@@ -320,7 +322,7 @@ contract MailboxFacet is Base, IMailbox {
             uint256 baseCost = params.l2GasPrice * _l2GasLimit;
             require(msg.value >= baseCost + _l2Value, "mv"); // The `msg.value` doesn't cover the transaction cost
         }
-
+        
         // If the `_refundRecipient` is not provided, we use the `_sender` as the recipient.
         address refundRecipient = _refundRecipient == address(0) ? _sender : _refundRecipient;
         // If the `_refundRecipient` is a smart contract, we apply the L1 to L2 alias to prevent foot guns.
@@ -329,13 +331,13 @@ contract MailboxFacet is Base, IMailbox {
         }
 
         params.sender = _sender;
-        params.txId = txId;
+        params.txId = s.priorityQueue.getTotalPriorityTxs();
         params.l2Value = _l2Value;
         params.contractAddressL2 = _contractAddressL2;
-        params.expirationTimestamp = expirationTimestamp;
+        params.expirationTimestamp = uint64(block.timestamp + PRIORITY_EXPIRATION);
         params.l2GasLimit = _l2GasLimit;
+        params.valueToMint = _amount;
         params.l2GasPricePerPubdata = _l2GasPerPubdataByteLimit;
-        params.valueToMint = 10000000000000000000000;
         params.refundRecipient = refundRecipient;
 
         canonicalTxHash = _writePriorityOp(params, _calldata, _factoryDeps);

@@ -21,6 +21,7 @@ contract DiamondUpgradeInit1 is MailboxFacet {
             L2_FORCE_DEPLOYER_ADDR,
             L2_DEPLOYER_SYSTEM_CONTRACT_ADDR,
             0,
+            0,
             _forceDeployCalldata,
             _l2GasLimit,
             REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

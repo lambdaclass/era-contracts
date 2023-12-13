@@ -48,6 +48,7 @@ async function getL1TxInfo(
   const l1Calldata = zksync.interface.encodeFunctionData("requestL2Transaction", [
     to,
     0,
+    0,
     l2Calldata,
     DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
     REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
@@ -158,6 +159,7 @@ async function main() {
 
       const tx = await zkSync.requestL2Transaction(
         l2WethTokenProxyAddress,
+        0,
         0,
         calldata,
         DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,

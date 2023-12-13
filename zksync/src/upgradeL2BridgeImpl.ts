@@ -74,6 +74,7 @@ async function getL1TxInfo(
   const l1Calldata = zksync.interface.encodeFunctionData("requestL2Transaction", [
     to,
     0,
+    0,
     l2Calldata,
     priorityTxMaxGasLimit,
     REQUIRED_L1_TO_L2_GAS_PER_PUBDATA_LIMIT,

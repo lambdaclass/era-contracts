@@ -346,6 +346,7 @@ describe("Mailbox tests", function () {
       mailbox.interface.encodeFunctionData("requestL2Transaction", [
         ethers.constants.AddressZero,
         0,
+        0,
         "0x",
         l2GasLimit,
         REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
