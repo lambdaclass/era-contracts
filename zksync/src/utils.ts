@@ -87,10 +87,13 @@ export async function create2DeployFromL1(
   gasPrice ??= await zkSync.provider.getGasPrice();
   const expectedCost = await zkSync.l2TransactionBaseCost(gasPrice, l2GasLimit, REQUIRED_L2_GAS_PRICE_PER_PUBDATA);
 
+  console.log(`VALUE: ${expectedCost}`);
+
+  // THIS IS THE FIRST DEPOSIT
   return await zkSync.requestL2Transaction(
     DEPLOYER_SYSTEM_CONTRACT_ADDRESS,
     0,
-    0,
+    expectedCost,
     calldata,
     l2GasLimit,
     REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

@@ -320,7 +320,7 @@ contract MailboxFacet is Base, IMailbox {
         {
             params.l2GasPrice = _isFree ? 0 : _deriveL2GasPrice(tx.gasprice, _l2GasPerPubdataByteLimit);
             uint256 baseCost = params.l2GasPrice * _l2GasLimit;
-            require(msg.value >= baseCost + _l2Value, "mv"); // The `msg.value` doesn't cover the transaction cost
+            require(_amount >= baseCost + _l2Value, "mv"); // The `msg.value` doesn't cover the transaction cost
         }
         
         // If the `_refundRecipient` is not provided, we use the `_sender` as the recipient.
