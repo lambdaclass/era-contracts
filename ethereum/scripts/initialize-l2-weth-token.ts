@@ -160,7 +160,7 @@ async function main() {
       const tx = await zkSync.requestL2Transaction(
         l2WethTokenProxyAddress,
         0,
-        0,
+        requiredValueToInitializeBridge,
         calldata,
         DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
         REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
