@@ -32,8 +32,9 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   const erc20 = await tokenFactory.deploy(...args, { gasLimit: 5000000 });
   await erc20.deployTransaction.wait();
 
-  console.log("Wallet address: ", wallet.address);
-  console.log("Wallet PK: ", wallet.privateKey);
+  console.error("Wallet address: ", wallet.address);
+  console.error("Wallet PK: ", wallet.privateKey);
+
   if (token.implementation !== "WETH9") {
     await erc20.mint(wallet.address, parseEther("3000000000"));
   }
