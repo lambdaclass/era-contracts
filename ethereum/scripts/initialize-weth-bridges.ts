@@ -82,6 +82,7 @@ async function main() {
         l2GovernorAddress,
         requiredValueToInitializeBridge,
         requiredValueToInitializeBridge,
+        requiredValueToInitializeBridge.mul(2),
         {
           gasPrice,
           value: requiredValueToInitializeBridge.mul(2),

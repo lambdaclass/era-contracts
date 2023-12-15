@@ -32,7 +32,8 @@ library BridgeInitializationHelper {
         uint256 _deployTransactionFee,
         bytes32 _bytecodeHash,
         bytes memory _constructorData,
-        bytes[] memory _factoryDeps
+        bytes[] memory _factoryDeps,
+        uint256 _amount
     ) internal returns (address deployedAddress) {
         bytes memory deployCalldata = abi.encodeCall(
             IL2ContractDeployer.create2,
@@ -41,7 +42,7 @@ library BridgeInitializationHelper {
         _zkSync.requestL2Transaction{value: _deployTransactionFee}(
             L2_DEPLOYER_SYSTEM_CONTRACT_ADDR,
             0,
-            0,
+            _amount,
             deployCalldata,
             DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
             REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

@@ -147,7 +147,7 @@ async function main() {
         zkSync.requestL2Transaction(
           ethers.constants.AddressZero,
           0,
-          0,
+          requiredValueToPublishBytecodes,
           "0x",
           priorityTxMaxGasLimit,
           REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
@@ -161,6 +161,7 @@ async function main() {
           l2GovernorAddress,
           requiredValueToInitializeBridge,
           requiredValueToInitializeBridge,
+          requiredValueToInitializeBridge.mul(2),
           {
             gasPrice,
             nonce: nonce + 1,
