@@ -265,7 +265,6 @@ contract MailboxFacet is Base, IMailbox {
         //     sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
         // }
 
-
         // Enforcing that `_l2GasPerPubdataByteLimit` equals to a certain constant number. This is needed
         // to ensure that users do not get used to using "exotic" numbers for _l2GasPerPubdataByteLimit, e.g. 1-2, etc.
         // VERY IMPORTANT: nobody should rely on this constant to be fixed and every contract should give their users the ability to provide the
@@ -322,7 +321,7 @@ contract MailboxFacet is Base, IMailbox {
             uint256 baseCost = params.l2GasPrice * _l2GasLimit;
             require(_amount >= baseCost + _l2Value, "mv"); // The `msg.value` doesn't cover the transaction cost
         }
-        
+
         // If the `_refundRecipient` is not provided, we use the `_sender` as the recipient.
         address refundRecipient = _refundRecipient == address(0) ? _sender : _refundRecipient;
         // If the `_refundRecipient` is a smart contract, we apply the L1 to L2 alias to prevent foot guns.
