@@ -288,15 +288,15 @@ export class Deployer {
     this.addresses.Bridges.ERC20BridgeImplementation = contractAddress;
   }
 
-  public async deployERC20Token(create2Salt: string, token_impl: string, params: any, ethTxOptions: ethers.providers.TransactionRequest) {
+  public async deployERC20Token(
+    create2Salt: string,
+    token_impl: string,
+    params: any,
+    ethTxOptions: ethers.providers.TransactionRequest
+  ) {
     ethTxOptions.gasLimit ??= 10_000_000;
 
-    const contractAddress = await this.deployViaCreate2(
-      token_impl,
-      params,
-      create2Salt,
-      ethTxOptions
-    );
+    const contractAddress = await this.deployViaCreate2(token_impl, params, create2Salt, ethTxOptions);
 
     if (this.verbose) {
       console.error(`ERC20 name: ${params}`);

@@ -40,8 +40,15 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
     verbose: true,
   });
 
-  const nonce = await wallet.getTransactionCount()
-  console.error(await deployer.deployERC20Token("0x0000000000000000000000000000000000000000000000000000000000000000", token.implementation, args, { nonce, gasLimit: 5000000 }));
+  const nonce = await wallet.getTransactionCount();
+  console.error(
+    await deployer.deployERC20Token(
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      token.implementation,
+      args,
+      { nonce, gasLimit: 5000000 }
+    )
+  );
 
   console.error("Wallet address: ", wallet.address);
   console.error("Wallet PK: ", wallet.privateKey);
