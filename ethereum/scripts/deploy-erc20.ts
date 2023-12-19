@@ -30,10 +30,7 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   console.error("wallet addr: ", wallet.address);
   token.implementation = token.implementation || DEFAULT_ERC20;
   const args = token.implementation !== "WETH9" ? [token.name, token.symbol, token.decimals] : [];
-  const tokenFactory = await hardhat.ethers.getContractFactory(token.implementation, wallet);
-  const erc20 = await tokenFactory.deploy(...args, { gasLimit: 5000000 });
-  await erc20.deployTransaction.wait();
-  console.error(erc20);
+  const tokenFactory = await hardhat.ethers.getContractFactory(token.implementation, wallet); 
 
   const deployer = new Deployer({
     deployWallet: wallet,
@@ -41,31 +38,34 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   });
 
   const nonce = await wallet.getTransactionCount();
+  const contract_address = await deployer.deployERC20Token(
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+    token.implementation,
+    args,
+    { nonce, gasLimit: 5000000 }
+  )
   console.error(
-    await deployer.deployERC20Token(
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      token.implementation,
-      args,
-      { nonce, gasLimit: 5000000 }
-    )
+   contract_address 
   );
 
+  const contract = tokenFactory.attach(contract_address);
+  console.error(contract);
   console.error("Wallet address: ", wallet.address);
   console.error("Wallet PK: ", wallet.privateKey);
 
   if (token.implementation !== "WETH9") {
-    await erc20.mint(wallet.address, parseEther("3000000000"));
+    await contract.mint(wallet.address, parseEther("3000000000"), { nonce: nonce + 4,  gasLimit: 5000000 });
   }
   for (let i = 0; i < 10; ++i) {
     const testWallet = Wallet.fromMnemonic(ethTestConfig.test_mnemonic as string, "m/44'/60'/0'/0/" + i).connect(
       provider
     );
     if (token.implementation !== "WETH9") {
-      await erc20.mint(testWallet.address, parseEther("3000000000"));
+      await contract.mint(testWallet.address, parseEther("3000000000"), { nonce: nonce + 4 + i,  gasLimit: 5000000 });
     }
   }
 
-  token.address = erc20.address;
+  token.address = contract.address;
 
   // Remove the unneeded field
   if (token.implementation) {
