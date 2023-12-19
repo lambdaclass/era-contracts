@@ -329,6 +329,14 @@ contract MailboxFacet is Base, IMailbox {
             refundRecipient = AddressAliasHelper.applyL1ToL2Alias(refundRecipient);
         }
 
+        // TODO: change `_contractL2` for the L1 token contract.
+        // Check balance and allowance.
+        require(IERC20(_contractL2).balanceOf(msg.sender) >= _amount, "Not enough balance");
+        require(IERC20(_contractL2).allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
+
+        // Transfer tokens to the contract.
+        IERC20(_contractL2).safeTransferFrom(msg.sender, address(this), _amount);
+
         params.sender = _sender;
         params.txId = s.priorityQueue.getTotalPriorityTxs();
         params.l2Value = _l2Value;
