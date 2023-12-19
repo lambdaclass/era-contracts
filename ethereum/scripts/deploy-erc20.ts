@@ -6,6 +6,7 @@ import { parseEther } from "ethers/lib/utils";
 import { web3Provider } from "./utils";
 import * as fs from "fs";
 import * as path from "path";
+import { Deployer } from "../src.ts/deploy";
 
 const DEFAULT_ERC20 = "TestnetERC20Token";
 
@@ -26,11 +27,21 @@ type TokenDescription = Token & {
 };
 
 async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Token> {
+  console.error("wallet addr: ", wallet.address);
   token.implementation = token.implementation || DEFAULT_ERC20;
-  const tokenFactory = await hardhat.ethers.getContractFactory(token.implementation, wallet);
   const args = token.implementation !== "WETH9" ? [token.name, token.symbol, token.decimals] : [];
+  const tokenFactory = await hardhat.ethers.getContractFactory(token.implementation, wallet);
   const erc20 = await tokenFactory.deploy(...args, { gasLimit: 5000000 });
   await erc20.deployTransaction.wait();
+  console.error(erc20);
+
+  const deployer = new Deployer({
+    deployWallet: wallet,
+    verbose: true,
+  });
+
+  const nonce = await wallet.getTransactionCount()
+  console.error(await deployer.deployERC20Token("0x0000000000000000000000000000000000000000000000000000000000000000", token.implementation, args, { nonce, gasLimit: 5000000 }));
 
   console.error("Wallet address: ", wallet.address);
   console.error("Wallet PK: ", wallet.privateKey);

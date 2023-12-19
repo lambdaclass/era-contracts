@@ -22,7 +22,7 @@ export async function deployViaCreate2(
       console.log(msg);
     }
   };
-  log(`Deploying ${contractName}`);
+  // log(`Deploying ${contractName}`);
 
   const create2Factory = SingletonFactoryFactory.connect(create2FactoryAddress, deployWallet);
   const contractFactory = await hardhat.ethers.getContractFactory(contractName, {
@@ -38,7 +38,7 @@ export async function deployViaCreate2(
 
   const deployedBytecodeBefore = await deployWallet.provider.getCode(expectedAddress);
   if (ethers.utils.hexDataLength(deployedBytecodeBefore) > 0) {
-    log(`Contract ${contractName} already deployed`);
+    // log(`Contract ${contractName} already deployed`);
     return [expectedAddress, ethers.constants.HashZero];
   }
 
@@ -46,7 +46,7 @@ export async function deployViaCreate2(
   const receipt = await tx.wait(2);
 
   const gasUsed = receipt.gasUsed;
-  log(`${contractName} deployed, gasUsed: ${gasUsed.toString()}`);
+  // log(`${contractName} deployed, gasUsed: ${gasUsed.toString()}`);
 
   const deployedBytecodeAfter = await deployWallet.provider.getCode(expectedAddress);
   if (ethers.utils.hexDataLength(deployedBytecodeAfter) == 0) {
