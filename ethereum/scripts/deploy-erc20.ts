@@ -30,7 +30,7 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   console.error("wallet addr: ", wallet.address);
   token.implementation = token.implementation || DEFAULT_ERC20;
   const args = token.implementation !== "WETH9" ? [token.name, token.symbol, token.decimals] : [];
-  const tokenFactory = await hardhat.ethers.getContractFactory(token.implementation, wallet); 
+  const tokenFactory = await hardhat.ethers.getContractFactory(token.implementation, wallet);
 
   const deployer = new Deployer({
     deployWallet: wallet,
@@ -43,10 +43,8 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
     token.implementation,
     args,
     { nonce, gasLimit: 5000000 }
-  )
-  console.error(
-   contract_address 
   );
+  console.error(contract_address);
 
   const contract = tokenFactory.attach(contract_address);
   console.error(contract);
@@ -54,14 +52,14 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   console.error("Wallet PK: ", wallet.privateKey);
 
   if (token.implementation !== "WETH9") {
-    await contract.mint(wallet.address, parseEther("3000000000"), { nonce: nonce + 4,  gasLimit: 5000000 });
+    await contract.mint(wallet.address, parseEther("3000000000"), { nonce: nonce + 4, gasLimit: 5000000 });
   }
   for (let i = 0; i < 10; ++i) {
     const testWallet = Wallet.fromMnemonic(ethTestConfig.test_mnemonic as string, "m/44'/60'/0'/0/" + i).connect(
       provider
     );
     if (token.implementation !== "WETH9") {
-      await contract.mint(testWallet.address, parseEther("3000000000"), { nonce: nonce + 4 + i,  gasLimit: 5000000 });
+      await contract.mint(testWallet.address, parseEther("3000000000"), { nonce: nonce + 4 + i, gasLimit: 5000000 });
     }
   }
 
