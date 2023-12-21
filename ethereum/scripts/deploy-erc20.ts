@@ -36,6 +36,7 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   console.error("Wallet PK: ", wallet.privateKey);
   console.error("Deploying token: ", token.name);
   console.error("erc20: ", erc20);
+
   if (token.implementation !== "WETH9") {
     await erc20.mint(wallet.address, parseEther("3000000000"));
   }
