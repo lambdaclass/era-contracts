@@ -24,8 +24,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 contract MailboxFacet is Base, IMailbox {
-    #define L1_NATIVE_TOKEN_ADDRESS $L1_NATIVE_TOKEN_ADDRESS
-
     using UncheckedMath for uint256;
     using PriorityQueue for PriorityQueue.Queue;
     using SafeERC20 for IERC20;
@@ -331,12 +329,13 @@ contract MailboxFacet is Base, IMailbox {
             refundRecipient = AddressAliasHelper.applyL1ToL2Alias(refundRecipient);
         }
 
+        address l1TokenAddress = address($(L1_NATIVE_TOKEN_ADDRESS));
         // Check balance and allowance.
-        require(IERC20(L1_NATIVE_TOKEN_ADDRESS).balanceOf(msg.sender) >= _amount, "Not enough balance");
-        require(IERC20(L1_NATIVE_TOKEN_ADDRESS).allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
+        require(IERC20(l1TokenAddress).balanceOf(msg.sender) >= _amount, "Not enough balance");
+        require(IERC20(l1TokenAddress).allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
 
         // Transfer tokens to the contract.
-        IERC20(L1_NATIVE_TOKEN_ADDRESS).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(l1TokenAddress).safeTransferFrom(msg.sender, address(this), _amount);
 
         params.sender = _sender;
         params.txId = s.priorityQueue.getTotalPriorityTxs();
