@@ -32,6 +32,11 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   const erc20 = await tokenFactory.deploy(...args, { gasLimit: 5000000 });
   await erc20.deployTransaction.wait();
 
+  console.error("Wallet address: ", wallet.address);
+  console.error("Wallet PK: ", wallet.privateKey);
+  console.error("Deploying token: ", token.name);
+  console.error("erc20: ", erc20);
+
   if (token.implementation !== "WETH9") {
     await erc20.mint(wallet.address, parseEther("3000000000"));
   }
@@ -44,8 +49,10 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
     }
   }
 
+  console.error("erc20 address: ", erc20.address);
+  console.error("token address: ", token.address);
   token.address = erc20.address;
-
+  console.error("token address after: ", token.address);
   // Remove the unneeded field
   if (token.implementation) {
     delete token.implementation;
@@ -97,8 +104,9 @@ async function main() {
       for (const token of tokens) {
         result.push(await deployToken(token, wallet));
       }
-
+      console.error("result: ", result);
       console.log(JSON.stringify(result, null, 2));
+      console.error("Json stringify passed");
     });
 
   await program.parseAsync(process.argv);
