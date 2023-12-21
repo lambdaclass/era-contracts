@@ -29,7 +29,7 @@ contract MailboxFacet is Base, IMailbox {
     using SafeERC20 for IERC20;
 
     string public constant override getName = "MailboxFacet";
-    event WithdrawalFinalized(address indexed to, address indexed l1Token, uint256 amount);
+    event WithdrawalFinalized(address indexed to, uint256 amount);
 
     /// @notice Prove that a specific arbitrary-length message was sent in a specific L2 batch number
     /// @param _batchNumber The executed L2 batch number in which the message appeared
@@ -215,7 +215,7 @@ contract MailboxFacet is Base, IMailbox {
             data: _message
         });
 
-        (address l1Receiver, address l1Token, uint256 amount) = _parseL2WithdrawalMessage(l2ToL1Message.data);
+        (address l1Receiver, uint256 amount) = _parseL2WithdrawalMessage(l2ToL1Message.data);
         // Preventing the stack too deep error
         {
             bool success = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
@@ -224,9 +224,10 @@ contract MailboxFacet is Base, IMailbox {
 
         s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
         // Withdraw funds
+        address l1Token = $(NATIVE_ERC20_ADDRESS);
         IERC20(l1Token).safeTransfer(l1Receiver, amount);
 
-        emit WithdrawalFinalized(l1Receiver, l1Token, amount);
+        emit WithdrawalFinalized(l1Receiver, amount);
         // #endif
     }
 
@@ -419,9 +420,7 @@ contract MailboxFacet is Base, IMailbox {
     /// @dev Decode the withdraw message that came from L2
     function _parseL2WithdrawalMessage(
         bytes memory _message
-    ) internal pure returns (address l1Receiver, address l1Token, uint256 amount) {
-        // #def TOKEN_TYPE 'ERC20'
-        // #if TOKEN_TYPE == 'ETH'
+    ) internal pure returns (address l1Receiver, uint256 amount) {
         // We check that the message is long enough to read the data.
         // Please note that there are two versions of the message:
         // 1. The message that is sent by `withdraw(address _l1Receiver)`
@@ -438,22 +437,6 @@ contract MailboxFacet is Base, IMailbox {
         require(bytes4(functionSignature) == this.finalizeEthWithdrawal.selector, "is");
 
         (l1Receiver, offset) = UnsafeBytes.readAddress(_message, offset);
-        l1Token = 0x0000000000000000000000000000000000000000;
         (amount, offset) = UnsafeBytes.readUint256(_message, offset);
-
-        // #elif TOKEN_TYPE == 'ERC20'
-        // Check that the message length is correct.
-        // It should be equal to the length of the function signature + address + address + uint256 = 4 + 20 + 20 + 32 =
-        // 76 (bytes).
-        bytes memory _l2ToL1message = _message;
-        require(_l2ToL1message.length == 76, "kk");
-
-        (uint32 functionSignature, uint256 offset) = UnsafeBytes.readUint32(_l2ToL1message, 0);
-        require(bytes4(functionSignature) == this.finalizeEthWithdrawal.selector, "nt");
-
-        (l1Receiver, offset) = UnsafeBytes.readAddress(_l2ToL1message, offset);
-        (l1Token, offset) = UnsafeBytes.readAddress(_l2ToL1message, offset);
-        (amount, offset) = UnsafeBytes.readUint256(_l2ToL1message, offset);
-        // #endif
     }
 }
