@@ -244,10 +244,23 @@ export class Deployer {
     const contractAddress = await this.deployViaCreate2("ExecutorFacet", [], create2Salt, ethTxOptions);
 
     if (this.verbose) {
+      console.log(`VALIDIUM_MODE=false`);
       console.log(`CONTRACTS_EXECUTOR_FACET_ADDR=${contractAddress}`);
     }
 
     this.addresses.ZkSync.ExecutorFacet = contractAddress;
+  }
+
+  public async deployValidiumExecutorFacet(create2Salt: string, ethTxOptions: ethers.providers.TransactionRequest) {
+    ethTxOptions.gasLimit ??= 10_000_000;
+    const contractAddress = await this.deployViaCreate2('ValidiumExecutorFacet', [], create2Salt, ethTxOptions);
+
+    if (this.verbose) {
+      console.log(`VALIDIUM_MODE=true`);
+      console.log(`CONTRACTS_VALIDIUM_EXECUTOR_FACET_ADDR=${contractAddress}`);
+    }
+
+      this.addresses.ZkSync.ExecutorFacet = contractAddress;
   }
 
   public async deployGettersFacet(create2Salt: string, ethTxOptions: ethers.providers.TransactionRequest) {
@@ -409,13 +422,17 @@ export class Deployer {
     this.addresses.ZkSync.DiamondProxy = contractAddress;
   }
 
-  public async deployZkSyncContract(create2Salt: string, gasPrice?: BigNumberish, nonce?) {
+  public async deployZkSyncContract(create2Salt: string, gasPrice?: BigNumberish, nonce?, validiumMode?: boolean) {
     nonce = nonce ? parseInt(nonce) : await this.deployWallet.getTransactionCount();
+
+    const executorFacetPromise = validiumMode
+      ? this.deployValidiumExecutorFacet(create2Salt, { gasPrice, nonce: nonce + 1 })
+      : this.deployExecutorFacet(create2Salt, { gasPrice, nonce: nonce + 1 });
 
     // deploy zkSync contract
     const independentZkSyncDeployPromises = [
       this.deployMailboxFacet(create2Salt, { gasPrice, nonce }),
-      this.deployExecutorFacet(create2Salt, { gasPrice, nonce: nonce + 1 }),
+      executorFacetPromise,
       this.deployAdminFacet(create2Salt, { gasPrice, nonce: nonce + 2 }),
       this.deployGettersFacet(create2Salt, { gasPrice, nonce: nonce + 3 }),
       this.deployDiamondInit(create2Salt, { gasPrice, nonce: nonce + 4 }),
