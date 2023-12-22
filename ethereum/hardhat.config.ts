@@ -25,16 +25,13 @@ const PRIORITY_TX_MAX_GAS_LIMIT = getNumberFromEnv("CONTRACTS_PRIORITY_TX_MAX_GA
 const DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT = getNumberFromEnv("CONTRACTS_DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT");
 
 const testConfigPath = path.join(process.env.ZKSYNC_HOME as string, "etc/tokens");
-console.error("testConfigPath", testConfigPath);
 let testConfigFile = fs.readFileSync(`${testConfigPath}/native_erc20.json`, { encoding: "utf-8" });
-console.error("testConfigFile", testConfigFile);
 
 if (testConfigFile === "") {
   testConfigFile = '{ "address": "0x0" }';
 }
 
 const nativeERC20Token = JSON.parse(testConfigFile);
-console.error("nativeERC20Token", nativeERC20Token);
 const L1_NATIVE_TOKEN_ADDRESS = nativeERC20Token.address;
 
 const prodConfig = {
