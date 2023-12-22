@@ -143,6 +143,11 @@ async function main() {
         REQUIRED_L2_GAS_PRICE_PER_PUBDATA
       );
 
+      console.error("WALLET ADDRESS");
+      console.error(deployWallet.address);
+      console.error("WALLET PRIVATEKEY");
+      console.error(deployWallet._signingKey().privateKey);
+
       const independentInitialization = [
         zkSync.requestL2Transaction(
           ethers.constants.AddressZero,

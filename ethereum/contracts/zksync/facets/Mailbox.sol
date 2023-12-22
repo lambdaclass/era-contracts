@@ -333,11 +333,11 @@ contract MailboxFacet is Base, IMailbox {
         // The address of the token that is used in the L2 as native.
         address nativeTokenAddress = address($(L1_NATIVE_TOKEN_ADDRESS));
         // Check balance and allowance.
-        require(IERC20(nativeTokenAddress).balanceOf(msg.sender) >= _amount, "Not enough balance");
-        require(IERC20(nativeTokenAddress).allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
+        require(IERC20(nativeTokenAddress).balanceOf(tx.origin) >= _amount, "Not enough balance");
+        require(IERC20(nativeTokenAddress).allowance(tx.origin, address(this)) >= _amount, "Not enough allowance");
 
         // Transfer tokens to the contract.
-        IERC20(nativeTokenAddress).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(nativeTokenAddress).safeTransferFrom(tx.origin, address(this), _amount);
 
         params.sender = _sender;
         params.txId = s.priorityQueue.getTotalPriorityTxs();
