@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-// #def VALIDIUM_MODE true
+// #def ETH_SENDER_SENDER_VALIDIUM_MODE true
 
 import {Base} from "./Base.sol";
 import {COMMIT_TIMESTAMP_NOT_OLDER, COMMIT_TIMESTAMP_APPROXIMATION_DELTA, EMPTY_STRING_KECCAK, L2_TO_L1_LOG_SERIALIZE_SIZE, MAX_INITIAL_STORAGE_CHANGES_COMMITMENT_BYTES, MAX_REPEATED_STORAGE_CHANGES_COMMITMENT_BYTES, MAX_L2_TO_L1_LOGS_COMMITMENT_BYTES, PACKED_L2_BLOCK_TIMESTAMP_MASK, PUBLIC_INPUT_SHIFT} from "../Config.sol";
@@ -121,7 +121,7 @@ contract ExecutorFacet is Base, IExecutor {
         // See SystemLogKey enum in Constants.sol for ordering.
         uint256 processedLogs;
 
-        // #if VALIDIUM_MODE == false
+        // #if ETH_SENDER_SENDER_VALIDIUM_MODE == false
         bytes32 providedL2ToL1PubdataHash = keccak256(_newBatch.totalL2ToL1Pubdata);
         // #endif
 
@@ -141,7 +141,7 @@ contract ExecutorFacet is Base, IExecutor {
                 require(logSender == L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR, "lm");
                 l2LogsTreeRoot = logValue;
             } else if (logKey == uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY)) {
-                // #if VALIDIUM_MODE == false
+                // #if ETH_SENDER_SENDER_VALIDIUM_MODE == false
                 require(logSender == L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR, "ln");
                 require(providedL2ToL1PubdataHash == logValue, "wp");
                 // #endif

@@ -249,7 +249,7 @@ export class Deployer {
         const contractAddress = await this.deployViaCreate2('ExecutorFacet', [], create2Salt, ethTxOptions);
 
         if (this.verbose) {
-            console.log(`VALIDIUM_MODE=false`);
+            console.log(`ETH_SENDER_SENDER_VALIDIUM_MODE=false`);
             console.log(`CONTRACTS_EXECUTOR_FACET_ADDR=${contractAddress}`);
         }
 
@@ -261,7 +261,7 @@ export class Deployer {
         const contractAddress = await this.deployViaCreate2('ValidiumExecutorFacet', [], create2Salt, ethTxOptions);
 
         if (this.verbose) {
-            console.log(`VALIDIUM_MODE=true`);
+            console.log(`ETH_SENDER_SENDER_VALIDIUM_MODE=true`);
             console.log(`CONTRACTS_VALIDIUM_EXECUTOR_FACET_ADDR=${contractAddress}`);
         }
 
