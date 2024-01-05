@@ -90,7 +90,8 @@ uint256 constant BATCH_OVERHEAD_L2_GAS = $(BATCH_OVERHEAD_L2_GAS);
 uint256 constant BATCH_OVERHEAD_L1_GAS = $(BATCH_OVERHEAD_L1_GAS);
 
 /// @dev The equivalent in L1 pubdata of L1 gas used for working with L1
-uint256 constant BATCH_OVERHEAD_PUBDATA = BATCH_OVERHEAD_L1_GAS / L1_GAS_PER_PUBDATA_BYTE;
+// uint256 constant BATCH_OVERHEAD_PUBDATA = BATCH_OVERHEAD_L1_GAS / L1_GAS_PER_PUBDATA_BYTE;
+uint256 constant BATCH_OVERHEAD_PUBDATA = 0;
 
 /// @dev The maximum number of transactions in L2 batch:
 uint256 constant MAX_TRANSACTIONS_IN_BATCH = $(MAX_TRANSACTIONS_IN_BATCH);
