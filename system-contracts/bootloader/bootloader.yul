@@ -87,7 +87,7 @@ object "Bootloader" {
             /// we demand at least 17 to cover up for the costs of additional
             /// hashing of it, etc.
             function L1_GAS_PER_PUBDATA_BYTE() -> ret {
-                ret := 17
+                ret := 0
             }
 
             /// @dev The size of the bootloader memory that is to spent by the transaction's
@@ -1866,7 +1866,8 @@ object "Bootloader" {
                 // pubdata to pay for.
                 // The difference between ceil and floor division here is negligible,
                 // so we prefer doing the cheaper operation for the end user
-                let pubdataEquivalentForL1Gas := safeDiv(l1GasOverhead, l1GasPerPubdata, "dd")
+                // let pubdataEquivalentForL1Gas := safeDiv(l1GasOverhead, l1GasPerPubdata, "dd")
+                let pubdataEquivalentForL1Gas := 0
                 
                 ret := safeAdd(
                     computationOverhead, 
@@ -1920,17 +1921,18 @@ object "Bootloader" {
                     totalBatchOverhead,
                     MAX_TRANSACTIONS_IN_BATCH()
                 )
-                ret := max(ret, overheadForSlot)
+
                 debugLog("overheadForSlot", overheadForSlot)
-            
                 // In the proved batch we ensure that the gasPerPubdataByte is not zero
                 // to avoid the potential edge case of division by zero. In Yul, division by 
                 // zero does not panic, but returns zero.
-                <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
-                if and(iszero(gasPerPubdataByte), FORBID_ZERO_GAS_PER_PUBDATA()) {
-                    assertionError("zero gasPerPubdataByte")
-                }
-                <!-- @endif --> 
+                // <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
+                // if and(iszero(gasPerPubdataByte), FORBID_ZERO_GAS_PER_PUBDATA()) {
+                //     assertionError("zero gasPerPubdataByte")
+                // }
+                // <!-- @endif -->
+
+                ret := max(ret, overheadForSlot)
             }
 
             /// @dev A method where all panics in the nearCalls get to.

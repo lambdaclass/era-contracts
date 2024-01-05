@@ -81,7 +81,8 @@ uint256 constant FAIR_L2_GAS_PRICE = $(FAIR_L2_GAS_PRICE);
 
 /// @dev Even though the price for 1 byte of pubdata is 16 L1 gas, we have a slightly increased
 /// value.
-uint256 constant L1_GAS_PER_PUBDATA_BYTE = $(L1_GAS_PER_PUBDATA_BYTE);
+// uint256 constant L1_GAS_PER_PUBDATA_BYTE = $(L1_GAS_PER_PUBDATA_BYTE);
+uint256 constant L1_GAS_PER_PUBDATA_BYTE = 0;
 
 /// @dev The computational overhead of processing an L2 batch.
 uint256 constant BATCH_OVERHEAD_L2_GAS = $(BATCH_OVERHEAD_L2_GAS);
