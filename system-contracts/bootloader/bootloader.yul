@@ -87,7 +87,7 @@ object "Bootloader" {
             /// we demand at least 17 to cover up for the costs of additional
             /// hashing of it, etc.
             function L1_GAS_PER_PUBDATA_BYTE() -> ret {
-                ret := 17
+                ret := 0
             }
 
             /// @dev The size of the bootloader memory that is to spent by the transaction's
@@ -1866,7 +1866,8 @@ object "Bootloader" {
                 // pubdata to pay for.
                 // The difference between ceil and floor division here is negligible,
                 // so we prefer doing the cheaper operation for the end user
-                let pubdataEquivalentForL1Gas := safeDiv(l1GasOverhead, l1GasPerPubdata, "dd")
+                // let pubdataEquivalentForL1Gas := safeDiv(l1GasOverhead, l1GasPerPubdata, "dd")
+                let pubdataEquivalentForL1Gas := 0
                 
                 ret := safeAdd(
                     computationOverhead, 
