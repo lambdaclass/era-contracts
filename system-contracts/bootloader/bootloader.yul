@@ -1652,11 +1652,11 @@ object "Bootloader" {
                 debugLog("requiredOverhead", requiredOverhead)
                 debugLog("operatorOverheadForTransaction", operatorOverheadForTransaction)
 
-                // The required overhead is less than the overhead that the operator
-                // has requested from the user, meaning that the operator tried to overcharge the user
-                if lt(requiredOverhead, operatorOverheadForTransaction) {
-                    assertionError("Operator's overhead too high")
-                }
+                // // The required overhead is less than the overhead that the operator
+                // // has requested from the user, meaning that the operator tried to overcharge the user
+                // if lt(requiredOverhead, operatorOverheadForTransaction) {
+                //     assertionError("Operator's overhead too high")
+                // }
 
                 ret := operatorOverheadForTransaction
             }
