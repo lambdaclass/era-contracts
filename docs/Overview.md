@@ -78,11 +78,10 @@ Each upgrade consists of two steps:
 
 - Upgrade Proposal - The governor can schedule upgrades in two different manners:
   - Fully transparent data. All implementation contracts and migration contracts are known to the community. The governor must wait
-for the timelock to execute the upgrade.
+    for the timelock to execute the upgrade.
   - Shadow upgrade. The governor only shows the commitment for the upgrade. The upgrade can be executed only with security council
-approval without timelock.
+    approval without timelock.
 - Upgrade execution - perform the upgrade that was proposed.
-
 
 #### MailboxFacet
 
@@ -119,7 +118,6 @@ function applyL1ToL2Alias(address l1Address) internal pure returns (address l2Ad
     l2Address = address(uint160(l1Address) + offset);
   }
 }
-
 ```
 
 For most of the rollups the address aliasing needs to prevent cross-chain exploits that would otherwise be possible if
@@ -169,14 +167,14 @@ Each L2 -> L1 system log will have a key that is part of the following:
 
 ```solidity
 enum SystemLogKey {
-    L2_TO_L1_LOGS_TREE_ROOT_KEY,
-    TOTAL_L2_TO_L1_PUBDATA_KEY,
-    STATE_DIFF_HASH_KEY,
-    PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY,
-    PREV_BATCH_HASH_KEY,
-    CHAINED_PRIORITY_TXN_HASH_KEY,
-    NUMBER_OF_LAYER_1_TXS_KEY,
-    EXPECTED_SYSTEM_CONTRACT_UPGRADE_TX_HASH_KEY
+  L2_TO_L1_LOGS_TREE_ROOT_KEY,
+  TOTAL_L2_TO_L1_PUBDATA_KEY,
+  STATE_DIFF_HASH_KEY,
+  PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY,
+  PREV_BATCH_HASH_KEY,
+  CHAINED_PRIORITY_TXN_HASH_KEY,
+  NUMBER_OF_LAYER_1_TXS_KEY,
+  EXPECTED_SYSTEM_CONTRACT_UPGRADE_TX_HASH_KEY
 }
 ```
 
@@ -260,11 +258,6 @@ validator can prove the already commited batches regardless of the mentioned tim
 to the `proveBatches` function) will be propogated to the zkSync contract. After, the `delay` is elapsed, the validator
 is allowed to call `executeBatches` to propogate the same calldata to zkSync contract.
 
-#### Allowlist
-
-The auxiliary contract controls the permission access list. It is used in bridges and diamond proxies to control which
-addresses can interact with them in the Alpha release.
-
 ### L2 specifics
 
 #### Deployment
@@ -295,26 +288,3 @@ Thus:
 - L2 contracts are deployed by bytecode hash, not by full bytecode
 - Factory dependencies - list of bytecode hashes that can be deployed on L2
 - Address derivation for `create`/`create2` on L1 and L2 is different
-
-### Deposit Limitation
-
-The amount of deposit can be limited. This limitation is applied on an account level and is not time-based. In other
-words, each account cannot deposit more than the cap defined. The tokens and the cap can be set through governance
-transactions. Moreover, there is an allow listing mechanism as well (only some allow listed accounts can call some
-specific functions). So, the combination of deposit limitation and allow listing leads to limiting the deposit of the
-allow listed account to be less than the defined cap.
-
-```solidity
-struct Deposit {
-  bool depositLimitation;
-  uint256 depositCap;
-}
-
-```
-
-Currently, the limit is used only for blocking deposits of the specific token (turning on the limitation and setting the
-limit to zero). And on the near future, this functionality will be completely removed.
-
-See the
-[documentation](https://era.zksync.io/docs/dev/building-on-zksync/contracts/contract-development.html#solidity-vyper-support)
-to read more!
