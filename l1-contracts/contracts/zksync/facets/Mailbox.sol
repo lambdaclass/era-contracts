@@ -164,8 +164,12 @@ contract MailboxFacet is Base, IMailbox {
     /// @param _gasPricePerPubdata The price for each pubdata byte in L2 gas
     /// @return The price of L2 gas in ETH
     function _deriveL2GasPrice(uint256 _l1GasPrice, uint256 _gasPricePerPubdata) internal pure returns (uint256) {
+        // #if ETH_SENDER_SENDER_VALIDIUM_MODE == false
         uint256 pubdataPriceETH = L1_GAS_PER_PUBDATA_BYTE * _l1GasPrice;
         uint256 minL2GasPriceETH = (pubdataPriceETH + _gasPricePerPubdata - 1) / _gasPricePerPubdata;
+        // #else
+        uint256 minL2GasPriceETH = 0;
+        // #endif
 
         return Math.max(FAIR_L2_GAS_PRICE, minL2GasPriceETH);
     }

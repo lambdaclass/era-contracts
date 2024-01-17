@@ -87,7 +87,7 @@ object "Bootloader" {
             /// we demand at least 17 to cover up for the costs of additional
             /// hashing of it, etc.
             function L1_GAS_PER_PUBDATA_BYTE() -> ret {
-                ret := 0
+                ret := 17
             }
 
             /// @dev The size of the bootloader memory that is to spent by the transaction's
