@@ -9,6 +9,7 @@ interface IL1BridgeLegacy {
         address _l1Token,
         uint256 _amount,
         uint256 _l2TxGasLimit,
-        uint256 _l2TxGasPerPubdataByte
+        uint256 _l2TxGasPerPubdataByte,
+        uint256 _l2MaxFee
     ) external payable returns (bytes32 txHash);
 }
