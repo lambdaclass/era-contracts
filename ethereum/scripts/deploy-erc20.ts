@@ -35,7 +35,6 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   if (token.implementation !== "WETH9") {
     await erc20.mint(wallet.address, parseEther("30000000000000000"));
     await erc20.approve(process.env.CONTRACTS_DIAMOND_PROXY_ADDR, parseEther("30000000000000000"));
-
   }
   for (let i = 0; i < 10; ++i) {
     const testWallet = Wallet.fromMnemonic(ethTestConfig.test_mnemonic as string, "m/44'/60'/0'/0/" + i).connect(

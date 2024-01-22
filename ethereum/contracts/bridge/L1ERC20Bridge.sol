@@ -152,7 +152,15 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, AllowListed, ReentrancyGua
         uint256 _l2TxGasPerPubdataByte,
         uint256 _l2MaxFee
     ) external payable returns (bytes32 l2TxHash) {
-        l2TxHash = deposit(_l2Receiver, _l1Token, _amount, _l2TxGasLimit, _l2TxGasPerPubdataByte, address(0), _l2MaxFee);
+        l2TxHash = deposit(
+            _l2Receiver,
+            _l1Token,
+            _amount,
+            _l2TxGasLimit,
+            _l2TxGasPerPubdataByte,
+            address(0),
+            _l2MaxFee
+        );
     }
 
     /// @notice Initiates a deposit by locking funds on the contract and sending the request
@@ -187,51 +195,48 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, AllowListed, ReentrancyGua
         address _refundRecipient,
         uint256 _l2MaxFee
     ) public payable nonReentrant senderCanCallFunction(allowList) returns (bytes32 l2TxHash) {
+        uint256 amount = validateAndExtractAmount(_l1Token, _amount);
+        
+        bytes memory l2TxCalldata = _getDepositL2Calldata(msg.sender, _l2Receiver, _l1Token, amount);
+        // If the refund recipient is not specified, the refund will be sent to the sender of the transaction.
+        // Otherwise, the refund will be sent to the specified address.
+        // If the recipient is a contract on L1, the address alias will be applied.
+        address refundRecipient = _getRefundRecipient(_refundRecipient);
+
+        l2TxHash = zkSync.requestL2Transaction{value: msg.value}(
+            l2Bridge,
+            0, // L2 msg.value
+            _l2MaxFee,
+            l2TxCalldata,
+            _l2TxGasLimit,
+            _l2TxGasPerPubdataByte,
+            new bytes[](0),
+            refundRecipient
+        );
+
         {
-            {
-                require(_amount != 0, "2T"); // empty deposit amount
-            }
-            uint256 amount = _depositFunds(msg.sender, IERC20(_l1Token), _amount);
-            {
-                require(amount == _amount, "1T"); // The token has non-standard transfer logic
-            }
-            {
-                // verify the deposit amount is allowed
-                _verifyDepositLimit(_l1Token, msg.sender, _amount, false);
-            }
-
-            {        
-                bytes memory l2TxCalldata = _getDepositL2Calldata(msg.sender, _l2Receiver, _l1Token, amount);
-                // If the refund recipient is not specified, the refund will be sent to the sender of the transaction.
-                // Otherwise, the refund will be sent to the specified address.
-                // If the recipient is a contract on L1, the address alias will be applied.
-                address refundRecipient = _getRefundRecipient(_refundRecipient);
-
-                l2TxHash = zkSync.requestL2Transaction{value: msg.value}(
-                    l2Bridge,
-                    0, // L2 msg.value
-                    _l2MaxFee,
-                    l2TxCalldata,
-                    _l2TxGasLimit,
-                    _l2TxGasPerPubdataByte,
-                    new bytes[](0),
-                    refundRecipient
-                );
-
-                {
-                    // Save the deposited amount to claim funds on L1 if the deposit failed on L2
-                    depositAmount[msg.sender][_l1Token][l2TxHash] = amount;
-                }
-                emit DepositInitiated(l2TxHash, msg.sender, _l2Receiver, _l1Token, amount);
-            }        
+            // Save the deposited amount to claim funds on L1 if the deposit failed on L2
+            depositAmount[msg.sender][_l1Token][l2TxHash] = amount;
+            emit DepositInitiated(l2TxHash, msg.sender, _l2Receiver, _l1Token, amount);
         }
+    }
+
+    function validateAndExtractAmount(address _l1Token, uint256 _amount) internal view returns (uint256 amount) {
+        uint256 amount = validateAndExtractAmount(_l1Token, _amount);
+        require(_amount != 0, "2T"); // empty deposit amount
+        amount = _depositFunds(msg.sender, IERC20(_l1Token), _amount);
+        require(amount == _amount, "1T"); // The token has non-standard transfer logic
+        // verify the deposit amount is allowed
+        _verifyDepositLimit(_l1Token, msg.sender, _amount, false);
+        
     }
 
     // Refund recipient logic
     function _getRefundRecipient(address _refundRecipient) internal view returns (address) {
-        return _refundRecipient == address(0)
-            ? (msg.sender != tx.origin ? AddressAliasHelper.applyL1ToL2Alias(msg.sender) : msg.sender)
-            : _refundRecipient;
+        return
+            _refundRecipient == address(0)
+                ? (msg.sender != tx.origin ? AddressAliasHelper.applyL1ToL2Alias(msg.sender) : msg.sender)
+                : _refundRecipient;
     }
 
     /// @dev Transfers tokens from the depositor address to the smart contract address

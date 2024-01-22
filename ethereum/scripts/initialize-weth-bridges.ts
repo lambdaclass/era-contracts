@@ -44,7 +44,7 @@ async function main() {
         ? new Wallet(cmd.privateKey, provider)
         : Wallet.fromMnemonic(
             process.env.MNEMONIC ? process.env.MNEMONIC : ethTestConfig.mnemonic,
-          "m/44'/60'/0'/0/0"
+            "m/44'/60'/0'/0/0"
           ).connect(provider);
       console.log(`Using deployer wallet: ${deployWallet.address}`);
 
