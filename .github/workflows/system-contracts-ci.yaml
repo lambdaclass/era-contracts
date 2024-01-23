@@ -2,10 +2,6 @@ name: System contracts CI
 
 on:
   pull_request:
-  push:
-    branches:
-      - dev
-      - main
 
 jobs:
   build:
@@ -35,8 +31,7 @@ jobs:
             system-contracts/artifacts-zk
             system-contracts/cache-zk
             system-contracts/typechain
-            system-contracts/contracts/artifacts
-            system-contracts/contracts/precompiles/artifacts
+            system-contracts/contracts-preprocessed
             system-contracts/bootloader/build
 
   lint:
@@ -80,8 +75,7 @@ jobs:
             system-contracts/artifacts-zk
             system-contracts/cache-zk
             system-contracts/typechain
-            system-contracts/contracts/artifacts
-            system-contracts/contracts/precompiles/artifacts
+            system-contracts/contracts-preprocessed
             system-contracts/bootloader/build
 
       - name: Run bootloader tests
@@ -120,8 +114,7 @@ jobs:
             system-contracts/artifacts-zk
             system-contracts/cache-zk
             system-contracts/typechain
-            system-contracts/contracts/artifacts
-            system-contracts/contracts/precompiles/artifacts
+            system-contracts/contracts-preprocessed
             system-contracts/bootloader/build
 
       - name: Run tests
@@ -157,8 +150,7 @@ jobs:
             system-contracts/artifacts-zk
             system-contracts/cache-zk
             system-contracts/typechain
-            system-contracts/contracts/artifacts
-            system-contracts/contracts/precompiles/artifacts
+            system-contracts/contracts-preprocessed
             system-contracts/bootloader/build
 
       - name: Check hashes
