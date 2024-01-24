@@ -93,6 +93,7 @@ export default {
       return {
         ...systemParams,
         ...defs,
+        process.env.VALIDIUM_MODE,
       };
     })(),
   },
