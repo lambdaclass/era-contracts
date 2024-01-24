@@ -222,14 +222,15 @@ async function main() {
   });
 
   console.log("Preprocessing production bootloader");
-  const provedBatchBootloader = preprocess.preprocess(bootloader, { BOOTLOADER_TYPE: "proved_batch" });
+  const provedBatchBootloader = preprocess.preprocess(bootloader, { BOOTLOADER_TYPE: "proved_batch", VALIDIUM_MODE: process.env.VALIDIUM_MODE });
   console.log("Preprocessing playground block bootloader");
-  const playgroundBatchBootloader = preprocess.preprocess(bootloader, { BOOTLOADER_TYPE: "playground_batch" });
+  const playgroundBatchBootloader = preprocess.preprocess(bootloader, { BOOTLOADER_TYPE: "playground_batch", VALIDIUM_MODE: process.env.VALIDIUM_MODE });
   console.log("Preprocessing gas test bootloader");
-  const gasTestBootloader = preprocess.preprocess(gasTestBootloaderTemplate, { BOOTLOADER_TYPE: "proved_batch" });
+  const gasTestBootloader = preprocess.preprocess(gasTestBootloaderTemplate, { BOOTLOADER_TYPE: "proved_batch", VALIDIUM_MODE: process.env.VALIDIUM_MODE });
   console.log("Preprocessing fee estimation bootloader");
   const feeEstimationBootloader = preprocess.preprocess(feeEstimationBootloaderTemplate, {
     BOOTLOADER_TYPE: "playground_batch",
+    VALIDIUM_MODE: process.env.VALIDIUM_MODE,
   });
 
   console.log("Preprocessing bootloader tests");
@@ -247,7 +248,7 @@ async function main() {
     ...params,
     CODE_START_PLACEHOLDER: "\n" + bootloaderTestUtils + "\n" + bootloaderTests + "\n" + testFramework,
   });
-  const provedBootloaderWithTests = preprocess.preprocess(bootloaderWithTests, { BOOTLOADER_TYPE: "proved_batch" });
+  const provedBootloaderWithTests = preprocess.preprocess(bootloaderWithTests, { BOOTLOADER_TYPE: "proved_batch", VALIDIUM_MODE: process.env.VALIDIUM_MODE });
 
   if (!existsSync(OUTPUT_DIR)) {
     mkdirSync(OUTPUT_DIR);
