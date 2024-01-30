@@ -230,10 +230,10 @@ contract MailboxFacet is Base, IMailbox {
     ) external payable nonReentrant returns (bytes32 canonicalTxHash) {
         // Change the sender address if it is a smart contract to prevent address collision between L1 and L2.
         // Please note, currently zkSync address derivation is different from Ethereum one, but it may be changed in the future.
-        // address sender = msg.sender;
-        // if (sender != tx.origin) {
-        //     sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
-        // }
+        address sender = msg.sender;
+        if (sender != tx.origin) {
+            sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
+        }
 
         // Enforcing that `_l2GasPerPubdataByteLimit` equals to a certain constant number. This is needed
         // to ensure that users do not get used to using "exotic" numbers for _l2GasPerPubdataByteLimit, e.g. 1-2, etc.
@@ -243,7 +243,7 @@ contract MailboxFacet is Base, IMailbox {
         require(_l2GasPerPubdataByteLimit == REQUIRED_L2_GAS_PRICE_PER_PUBDATA, "qp");
 
         canonicalTxHash = _requestL2Transaction(
-            msg.sender,
+            sender,
             _contractL2,
             _l2Value,
             _amount,
@@ -273,12 +273,15 @@ contract MailboxFacet is Base, IMailbox {
         // Here we manually assign fields for the struct to prevent "stack too deep" error
         WritePriorityOpParams memory params;
 
+        uint256 amount = _amount != 0 ? _amount : msg.value;
+        // uint256 amount = msg.value;
+
         // Checking that the user provided enough ether to pay for the transaction.
         // Using a new scope to prevent "stack too deep" error
         {
             params.l2GasPrice = _isFree ? 0 : _deriveL2GasPrice(tx.gasprice, _l2GasPerPubdataByteLimit);
             uint256 baseCost = params.l2GasPrice * _l2GasLimit;
-            require(_amount >= baseCost + _l2Value, "mv"); // The `msg.value` doesn't cover the transaction cost
+            require(amount >= baseCost + _l2Value, "mv"); // The `amount` doesn't cover the transaction cost
         }
 
         // If the `_refundRecipient` is not provided, we use the `_sender` as the recipient.
@@ -288,14 +291,17 @@ contract MailboxFacet is Base, IMailbox {
             refundRecipient = AddressAliasHelper.applyL1ToL2Alias(refundRecipient);
         }
 
-        // The address of the token that is used in the L2 as native.
-        address nativeTokenAddress = address($(L1_NATIVE_TOKEN_ADDRESS));
-        // Check balance and allowance.
-        require(IERC20(nativeTokenAddress).balanceOf(tx.origin) >= _amount, "Not enough balance");
-        require(IERC20(nativeTokenAddress).allowance(tx.origin, address(this)) >= _amount, "Not enough allowance");
+        // Check if we are operating with native tokens.
+        if (_amount != 0) { 
+            // The address of the token that is used in the L2 as native.
+            address nativeTokenAddress = address($(L1_NATIVE_TOKEN_ADDRESS));
+            // Check balance and allowance.
+            require(IERC20(nativeTokenAddress).balanceOf(tx.origin) >= amount, "Not enough balance");
+            require(IERC20(nativeTokenAddress).allowance(tx.origin, address(this)) >= amount, "Not enough allowance");
 
-        // Transfer tokens to the contract.
-        IERC20(nativeTokenAddress).safeTransferFrom(tx.origin, address(this), _amount);
+            // Transfer tokens to the contract.
+            IERC20(nativeTokenAddress).safeTransferFrom(tx.origin, address(this), amount);
+        }
 
         params.sender = _sender;
         params.txId = s.priorityQueue.getTotalPriorityTxs();
@@ -303,7 +309,7 @@ contract MailboxFacet is Base, IMailbox {
         params.contractAddressL2 = _contractAddressL2;
         params.expirationTimestamp = uint64(block.timestamp + PRIORITY_EXPIRATION);
         params.l2GasLimit = _l2GasLimit;
-        params.valueToMint = _amount;
+        params.valueToMint = amount;
         params.l2GasPricePerPubdata = _l2GasPerPubdataByteLimit;
         params.refundRecipient = refundRecipient;
 
