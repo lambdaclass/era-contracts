@@ -173,48 +173,47 @@ contract MailboxFacet is Base, IMailbox {
         bytes calldata _message,
         bytes32[] calldata _merkleProof
     ) external nonReentrant {
-        // #def TOKEN_TYPE 'ERC20'
-        // #if TOKEN_TYPE == 'ETH'
-        require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "jj");
+        if (true) { // TOKEN_TYPE == 'ETH'
+            require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "jj");
 
-        L2Message memory l2ToL1Message = L2Message({
-            txNumberInBatch: _l2TxNumberInBatch,
-            sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
-            data: _message
-        });
+            L2Message memory l2ToL1Message = L2Message({
+                txNumberInBatch: _l2TxNumberInBatch,
+                sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
+                data: _message
+            });
 
-        (address _l1WithdrawReceiver, address _t, uint256 _amount) = _parseL2WithdrawalMessage(_message);
-        {
-            bool proofValid = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
-            require(proofValid, "pi"); // Failed to verify that withdrawal was actually initialized on L2
+            (address _l1WithdrawReceiver, uint256 _amount) = _parseL2WithdrawalMessage(_message);
+            {
+                bool proofValid = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
+                require(proofValid, "pi"); // Failed to verify that withdrawal was actually initialized on L2
+            }
+            s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
+            _withdrawFunds(_l1WithdrawReceiver, _amount);
+
+            emit EthWithdrawalFinalized(_l1WithdrawReceiver, _amount);
+        } else if (true) { // TOKEN_TYPE == 'ERC20'
+            require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "pw");
+
+            L2Message memory l2ToL1Message = L2Message({
+                txNumberInBatch: _l2TxNumberInBatch,
+                sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
+                data: _message
+            });
+
+            (address l1Receiver, uint256 amount) = _parseL2WithdrawalMessage(l2ToL1Message.data);
+            // Preventing the stack too deep error
+            {
+                bool success = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
+                require(success, "nq");
+            }
+
+            s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
+            // Withdraw funds
+            address l1Token = $(NATIVE_ERC20_ADDRESS);
+            IERC20(l1Token).safeTransfer(l1Receiver, amount);
+
+            emit WithdrawalFinalized(l1Receiver, amount);
         }
-        s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
-        _withdrawFunds(_l1WithdrawReceiver, _amount);
-
-        emit EthWithdrawalFinalized(_l1WithdrawReceiver, _amount);
-        // #elif TOKEN_TYPE == 'ERC20'
-        require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "pw");
-
-        L2Message memory l2ToL1Message = L2Message({
-            txNumberInBatch: _l2TxNumberInBatch,
-            sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
-            data: _message
-        });
-
-        (address l1Receiver, uint256 amount) = _parseL2WithdrawalMessage(l2ToL1Message.data);
-        // Preventing the stack too deep error
-        {
-            bool success = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
-            require(success, "nq");
-        }
-
-        s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
-        // Withdraw funds
-        address l1Token = $(NATIVE_ERC20_ADDRESS);
-        IERC20(l1Token).safeTransfer(l1Receiver, amount);
-
-        emit WithdrawalFinalized(l1Receiver, amount);
-        // #endif
     }
 
     /// @inheritdoc IMailbox
