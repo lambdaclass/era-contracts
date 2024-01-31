@@ -61,6 +61,7 @@ async function main() {
     .option("--gas-price <gas-price>")
     .option("--nonce <nonce>")
     .option("--erc20-bridge <erc20-bridge>")
+    .option("--native-erc20")
     .action(async (cmd) => {
       const deployWallet = cmd.privateKey
         ? new Wallet(cmd.privateKey, provider)
@@ -69,6 +70,10 @@ async function main() {
           "m/44'/60'/0'/0/0"
           ).connect(provider);
       console.log(`Using deployer wallet: ${deployWallet.address}`);
+
+      // check if native erc20 is enabled
+      const nativeErc20impl = cmd.nativeErc20 ? true : false;
+      console.log(`Using native erc20: ${nativeErc20impl}`);
 
       const gasPrice = cmd.gasPrice ? parseUnits(cmd.gasPrice, "gwei") : await provider.getGasPrice();
       console.log(`Using gas price: ${formatUnits(gasPrice, "gwei")} gwei`);
@@ -152,7 +157,7 @@ async function main() {
         zkSync.requestL2Transaction(
           ethers.constants.AddressZero,
           0,
-          requiredValueToPublishBytecodes,
+          nativeErc20impl ? requiredValueToPublishBytecodes : 0,
           "0x",
           priorityTxMaxGasLimit,
           SYSTEM_CONFIG.requiredL2GasPricePerPubdata,
@@ -166,7 +171,7 @@ async function main() {
           l2GovernorAddress,
           requiredValueToInitializeBridge,
           requiredValueToInitializeBridge,
-          requiredValueToInitializeBridge.mul(2),
+          nativeErc20impl ? requiredValueToInitializeBridge.mul(2) : 0,
           {
             gasPrice,
             nonce: nonce + 1,
@@ -174,7 +179,6 @@ async function main() {
           }
         ),
       ];
-
       const txs = await Promise.all(independentInitialization);
       for (const tx of txs) {
         console.log(`Transaction sent with hash ${tx.hash} and nonce ${tx.nonce}. Waiting for receipt...`);

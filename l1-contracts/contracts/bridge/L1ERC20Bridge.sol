@@ -87,12 +87,18 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
         uint256 _deployBridgeProxyFee,
         uint256 _amount
     ) external payable reentrancyGuardInitializer {
+        bool nativeErc20 = _amount != 0;
+
         require(_l2TokenBeacon != address(0), "nf");
         require(_governor != address(0), "nh");
         // We are expecting to see the exact three bytecodes that are needed to initialize the bridge
         require(_factoryDeps.length == 3, "mk");
         // The caller miscalculated deploy transactions fees
-        require(_amount == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        if (nativeErc20) {
+            require(_amount == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        } else {
+            require(msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        }
         l2TokenProxyBytecodeHash = L2ContractHelper.hashL2Bytecode(_factoryDeps[2]);
         l2TokenBeacon = _l2TokenBeacon;
 
