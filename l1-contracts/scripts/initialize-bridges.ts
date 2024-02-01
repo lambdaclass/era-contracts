@@ -69,11 +69,11 @@ async function main() {
             process.env.MNEMONIC ? process.env.MNEMONIC : ethTestConfig.mnemonic,
           "m/44'/60'/0'/0/0"
           ).connect(provider);
-      console.log(`Using deployer wallet: ${deployWallet.address}`);
 
-      // check if native erc20 is enabled
       const nativeErc20impl = cmd.nativeErc20 ? true : false;
       console.log(`Using native erc20: ${nativeErc20impl}`);
+
+      console.log(`Using deployer wallet: ${deployWallet.address}`);
 
       const gasPrice = cmd.gasPrice ? parseUnits(cmd.gasPrice, "gwei") : await provider.getGasPrice();
       console.log(`Using gas price: ${formatUnits(gasPrice, "gwei")} gwei`);

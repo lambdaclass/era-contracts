@@ -20,7 +20,7 @@ async function main() {
 
   program.version("0.1.0").name("deploy-testnet-paymaster").description("Deploys the testnet paymaster to L2");
 
-  program.option("--private-key <private-key>").action(async (cmd) => {
+  program.option("--private-key <private-key>").option("--native-erc20").action(async (cmd) => {
     const deployWallet = cmd.privateKey
       ? new Wallet(cmd.privateKey, provider)
       : Wallet.fromMnemonic(
@@ -32,10 +32,11 @@ async function main() {
     const testnetPaymasterBytecode = hre.artifacts.readArtifactSync("TestnetPaymaster").bytecode;
     const create2Salt = ethers.constants.HashZero;
     const paymasterAddress = computeL2Create2Address(deployWallet, testnetPaymasterBytecode, "0x", create2Salt);
+    const nativeErc20impl = cmd.nativeErc20 ? true : false;  
 
     // TODO: request from API how many L2 gas needs for the transaction.
     await (
-      await create2DeployFromL1(deployWallet, testnetPaymasterBytecode, "0x", create2Salt, priorityTxMaxGasLimit)
+      await create2DeployFromL1(deployWallet, testnetPaymasterBytecode, "0x", create2Salt, priorityTxMaxGasLimit, undefined, nativeErc20impl)
     ).wait();
 
     console.log(`CONTRACTS_L2_TESTNET_PAYMASTER_ADDR=${paymasterAddress}`);
