@@ -22,6 +22,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 // While formally the following import is not used, it is needed to inherit documentation from it
 import {IBase} from "../interfaces/IBase.sol";
 
+bool constant NATIVE_ERC20 = $(NATIVE_ERC20);
+
 /// @title zkSync Mailbox contract providing interfaces for L1 <-> L2 interaction.
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
@@ -173,47 +175,47 @@ contract MailboxFacet is Base, IMailbox {
         bytes calldata _message,
         bytes32[] calldata _merkleProof
     ) external nonReentrant {
-        if (true) { // TOKEN_TYPE == 'ETH'
-            require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "jj");
+        // #if NATIVE_ERC20 == false
+        require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "jj");
 
-            L2Message memory l2ToL1Message = L2Message({
-                txNumberInBatch: _l2TxNumberInBatch,
-                sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
-                data: _message
-            });
+        L2Message memory l2ToL1Message = L2Message({
+            txNumberInBatch: _l2TxNumberInBatch,
+            sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
+            data: _message
+        });
 
-            (address _l1WithdrawReceiver, uint256 _amount) = _parseL2WithdrawalMessage(_message);
-            {
-                bool proofValid = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
-                require(proofValid, "pi"); // Failed to verify that withdrawal was actually initialized on L2
-            }
-            s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
-            _withdrawFunds(_l1WithdrawReceiver, _amount);
-
-            emit EthWithdrawalFinalized(_l1WithdrawReceiver, _amount);
-        } else if (true) { // TOKEN_TYPE == 'ERC20'
-            require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "pw");
-
-            L2Message memory l2ToL1Message = L2Message({
-                txNumberInBatch: _l2TxNumberInBatch,
-                sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
-                data: _message
-            });
-
-            (address l1Receiver, uint256 amount) = _parseL2WithdrawalMessage(l2ToL1Message.data);
-            // Preventing the stack too deep error
-            {
-                bool success = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
-                require(success, "nq");
-            }
-
-            s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
-            // Withdraw funds
-            address l1Token = $(NATIVE_ERC20_ADDRESS);
-            IERC20(l1Token).safeTransfer(l1Receiver, amount);
-
-            emit WithdrawalFinalized(l1Receiver, amount);
+        (address _l1WithdrawReceiver, uint256 _amount) = _parseL2WithdrawalMessage(_message);
+        {
+            bool proofValid = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
+            require(proofValid, "pi"); // Failed to verify that withdrawal was actually initialized on L2
         }
+        s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
+        _withdrawFunds(_l1WithdrawReceiver, _amount);
+        
+        emit EthWithdrawalFinalized(_l1WithdrawReceiver, _amount);
+        // #elif NATIVE_ERC20 == true
+        require(!s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex], "pw");
+
+        L2Message memory l2ToL1Message = L2Message({
+            txNumberInBatch: _l2TxNumberInBatch,
+            sender: L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR,
+            data: _message
+        });
+
+        (address l1Receiver, uint256 amount) = _parseL2WithdrawalMessage(l2ToL1Message.data);
+        // Preventing the stack too deep error
+        {
+            bool success = proveL2MessageInclusion(_l2BatchNumber, _l2MessageIndex, l2ToL1Message, _merkleProof);
+            require(success, "nq");
+        }
+
+        s.isEthWithdrawalFinalized[_l2BatchNumber][_l2MessageIndex] = true;
+        // Withdraw funds
+        address l1Token = $(NATIVE_ERC20_ADDRESS);
+        IERC20(l1Token).safeTransfer(l1Receiver, amount);
+
+        emit WithdrawalFinalized(l1Receiver, amount);
+        // #endif
     }
 
     /// @inheritdoc IMailbox
