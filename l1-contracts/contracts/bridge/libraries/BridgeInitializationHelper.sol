@@ -42,7 +42,7 @@ library BridgeInitializationHelper {
         _zkSync.requestL2Transaction{value: _deployTransactionFee}(
             L2_DEPLOYER_SYSTEM_CONTRACT_ADDR,
             0,
-            _amount,
+            _deployTransactionFee,
             deployCalldata,
             DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
             REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
