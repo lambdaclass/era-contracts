@@ -230,10 +230,10 @@ contract MailboxFacet is Base, IMailbox {
     ) external payable nonReentrant returns (bytes32 canonicalTxHash) {
         // Change the sender address if it is a smart contract to prevent address collision between L1 and L2.
         // Please note, currently zkSync address derivation is different from Ethereum one, but it may be changed in the future.
-        // address sender = msg.sender;
-        // if (sender != tx.origin) {
-        //     sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
-        // }
+        address sender = msg.sender;
+        if (sender != tx.origin) {
+            sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
+        }
 
         // Enforcing that `_l2GasPerPubdataByteLimit` equals to a certain constant number. This is needed
         // to ensure that users do not get used to using "exotic" numbers for _l2GasPerPubdataByteLimit, e.g. 1-2, etc.

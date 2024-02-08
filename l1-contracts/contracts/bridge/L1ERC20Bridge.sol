@@ -214,7 +214,7 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
         // If the recipient is a contract on L1, the address alias will be applied.
         address refundRecipient = _getRefundRecipient(_refundRecipient);
 
-        return zkSync.requestL2Transaction{value: msg.value}(
+        return zkSync.requestL2Transaction{value: _l2MaxFee}(
             l2Bridge,
             0, // L2 msg.value
             _l2MaxFee,
