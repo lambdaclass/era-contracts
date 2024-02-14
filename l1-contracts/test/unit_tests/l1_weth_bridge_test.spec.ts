@@ -12,7 +12,7 @@ import {
   WETH9Factory,
 } from "../../typechain";
 import type { IZkSync } from "../../typechain/IZkSync";
-import { getCallRevertReason } from "./utils";
+import { defaultFeeParams, getCallRevertReason } from "./utils";
 
 import { Interface } from "ethers/lib/utils";
 import type { Address } from "zksync-web3/build/src/types";
@@ -37,6 +37,7 @@ export async function create2DeployFromL1(
 
   await zkSync.requestL2Transaction(
     DEPLOYER_SYSTEM_CONTRACT_ADDRESS,
+    0,
     0,
     calldata,
     l2GasLimit,
@@ -92,7 +93,8 @@ describe("WETH Bridge tests", () => {
         l2DefaultAccountBytecodeHash: dummyHash,
         priorityTxMaxGasLimit: 10000000,
         initialProtocolVersion: 0,
-      },
+        feeParams: defaultFeeParams(),
+      },    
     ]);
 
     const facetCuts = [
@@ -124,6 +126,7 @@ describe("WETH Bridge tests", () => {
       await owner.getAddress(),
       ethers.constants.WeiPerEther,
       ethers.constants.WeiPerEther,
+      0
     ]);
     const _bridgeProxy = await (
       await hardhat.ethers.getContractFactory("ERC1967Proxy")
@@ -142,7 +145,8 @@ describe("WETH Bridge tests", () => {
           0,
           0,
           0,
-          ethers.constants.AddressZero
+          ethers.constants.AddressZero,
+          0
         )
     );
 
@@ -161,6 +165,7 @@ describe("WETH Bridge tests", () => {
         1000000,
         REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
         await randomSigner.getAddress(),
+        0,
         { value: ethers.constants.WeiPerEther }
       );
   });

@@ -7,7 +7,7 @@ import {
   computeL2Create2Address,
   getNumberFromEnv,
   hashL2Bytecode,
-  REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
+  SYSTEM_CONFIG,
   web3Provider,
 } from "./utils";
 
@@ -61,13 +61,18 @@ async function main() {
     .option("--gas-price <gas-price>")
     .option("--nonce <nonce>")
     .option("--erc20-bridge <erc20-bridge>")
+    .option("--native-erc20")
     .action(async (cmd) => {
       const deployWallet = cmd.privateKey
         ? new Wallet(cmd.privateKey, provider)
         : Wallet.fromMnemonic(
             process.env.MNEMONIC ? process.env.MNEMONIC : ethTestConfig.mnemonic,
-            "m/44'/60'/0'/0/0"
+          "m/44'/60'/0'/0/0"
           ).connect(provider);
+
+      const nativeErc20impl = cmd.nativeErc20 ? true : false;
+      console.log(`Using native erc20: ${nativeErc20impl}`);
+
       console.log(`Using deployer wallet: ${deployWallet.address}`);
 
       const gasPrice = cmd.gasPrice ? parseUnits(cmd.gasPrice, "gwei") : await provider.getGasPrice();
@@ -134,22 +139,28 @@ async function main() {
       const requiredValueToInitializeBridge = await zkSync.l2TransactionBaseCost(
         gasPrice,
         DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
-        REQUIRED_L2_GAS_PRICE_PER_PUBDATA
+        SYSTEM_CONFIG.requiredL2GasPricePerPubdata
       );
 
       const requiredValueToPublishBytecodes = await zkSync.l2TransactionBaseCost(
         gasPrice,
         priorityTxMaxGasLimit,
-        REQUIRED_L2_GAS_PRICE_PER_PUBDATA
+        SYSTEM_CONFIG.requiredL2GasPricePerPubdata
       );
+
+      console.error("WALLET ADDRESS");
+      console.error(deployWallet.address);
+      console.error("WALLET PRIVATEKEY");
+      console.error(deployWallet._signingKey().privateKey);
 
       const independentInitialization = [
         zkSync.requestL2Transaction(
           ethers.constants.AddressZero,
           0,
+          nativeErc20impl ? requiredValueToPublishBytecodes : 0,
           "0x",
           priorityTxMaxGasLimit,
-          REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
+          SYSTEM_CONFIG.requiredL2GasPricePerPubdata,
           [L2_STANDARD_ERC20_PROXY_FACTORY_BYTECODE, L2_STANDARD_ERC20_IMPLEMENTATION_BYTECODE],
           deployWallet.address,
           { gasPrice, nonce, value: requiredValueToPublishBytecodes }
@@ -160,6 +171,7 @@ async function main() {
           l2GovernorAddress,
           requiredValueToInitializeBridge,
           requiredValueToInitializeBridge,
+          nativeErc20impl ? requiredValueToInitializeBridge.mul(2) : 0,
           {
             gasPrice,
             nonce: nonce + 1,
@@ -167,7 +179,6 @@ async function main() {
           }
         ),
       ];
-
       const txs = await Promise.all(independentInitialization);
       for (const tx of txs) {
         console.log(`Transaction sent with hash ${tx.hash} and nonce ${tx.nonce}. Waiting for receipt...`);

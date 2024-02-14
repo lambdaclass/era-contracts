@@ -2,21 +2,24 @@
 
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "./interfaces/IL1BridgeLegacy.sol";
-import "./interfaces/IL1Bridge.sol";
-import "./interfaces/IL2Bridge.sol";
-import "./interfaces/IL2ERC20Bridge.sol";
+import {IL1BridgeLegacy} from "./interfaces/IL1BridgeLegacy.sol";
+import {IL1Bridge} from "./interfaces/IL1Bridge.sol";
+import {IL2Bridge} from "./interfaces/IL2Bridge.sol";
+import {IL2ERC20Bridge} from "./interfaces/IL2ERC20Bridge.sol";
 
-import "./libraries/BridgeInitializationHelper.sol";
+import {BridgeInitializationHelper} from "./libraries/BridgeInitializationHelper.sol";
 
-import "../zksync/interfaces/IZkSync.sol";
-import "../common/libraries/UnsafeBytes.sol";
-import "../common/libraries/L2ContractHelper.sol";
-import "../common/ReentrancyGuard.sol";
-import "../vendor/AddressAliasHelper.sol";
+import {IZkSync} from "../zksync/interfaces/IZkSync.sol";
+import {TxStatus} from "../zksync/interfaces/IMailbox.sol";
+import {L2Message} from "../zksync/Storage.sol";
+import {UnsafeBytes} from "../common/libraries/UnsafeBytes.sol";
+import {L2ContractHelper} from "../common/libraries/L2ContractHelper.sol";
+import {ReentrancyGuard} from "../common/ReentrancyGuard.sol";
+import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
@@ -31,11 +34,13 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
 
     /// @dev A mapping L2 batch number => message number => flag
     /// @dev Used to indicate that zkSync L2 -> L1 message was already processed
-    mapping(uint256 => mapping(uint256 => bool)) public isWithdrawalFinalized;
+    mapping(uint256 l2BatchNumber => mapping(uint256 l2ToL1MessageNumber => bool isFinalized))
+        public isWithdrawalFinalized;
 
     /// @dev A mapping account => L1 token address => L2 deposit transaction hash => amount
     /// @dev Used for saving the number of deposited funds, to claim them in case the deposit transaction will fail
-    mapping(address => mapping(address => mapping(bytes32 => uint256))) internal depositAmount;
+    mapping(address account => mapping(address l1Token => mapping(bytes32 depositL2TxHash => uint256 amount)))
+        internal depositAmount;
 
     /// @dev The address of deployed L2 bridge counterpart
     address public l2Bridge;
@@ -46,14 +51,14 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
     /// @dev The bytecode hash of the L2 token contract
     bytes32 public l2TokenProxyBytecodeHash;
 
-    mapping(address => uint256) public __DEPRECATED_lastWithdrawalLimitReset;
+    mapping(address => uint256) private __DEPRECATED_lastWithdrawalLimitReset;
 
     /// @dev A mapping L1 token address => the accumulated withdrawn amount during the withdrawal limit window
-    mapping(address => uint256) public __DEPRECATED_withdrawnAmountInWindow;
+    mapping(address => uint256) private __DEPRECATED_withdrawnAmountInWindow;
 
     /// @dev The accumulated deposited amount per user.
     /// @dev A mapping L1 token address => user address => the total deposited amount by the user
-    mapping(address => mapping(address => uint256)) public totalDepositedAmountPerUser;
+    mapping(address => mapping(address => uint256)) private __DEPRECATED_totalDepositedAmountPerUser;
 
     /// @dev Contract is expected to be used as proxy implementation.
     /// @dev Initialize the implementation to prevent Parity hack.
@@ -79,14 +84,21 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
         address _l2TokenBeacon,
         address _governor,
         uint256 _deployBridgeImplementationFee,
-        uint256 _deployBridgeProxyFee
+        uint256 _deployBridgeProxyFee,
+        uint256 _amount
     ) external payable reentrancyGuardInitializer {
+        bool nativeErc20 = _amount != 0;
+
         require(_l2TokenBeacon != address(0), "nf");
         require(_governor != address(0), "nh");
         // We are expecting to see the exact three bytecodes that are needed to initialize the bridge
         require(_factoryDeps.length == 3, "mk");
         // The caller miscalculated deploy transactions fees
-        require(msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        if (nativeErc20) {
+            require(_amount == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        } else {
+            require(msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        }
         l2TokenProxyBytecodeHash = L2ContractHelper.hashL2Bytecode(_factoryDeps[2]);
         l2TokenBeacon = _l2TokenBeacon;
 
@@ -99,7 +111,8 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
             _deployBridgeImplementationFee,
             l2BridgeImplementationBytecodeHash,
             "", // Empty constructor data
-            _factoryDeps // All factory deps are needed for L2 bridge
+            _factoryDeps, // All factory deps are needed for L2 bridge
+            _amount
         );
 
         // Prepare the proxy constructor data
@@ -120,13 +133,16 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
             l2BridgeProxyBytecodeHash,
             l2BridgeProxyConstructorData,
             // No factory deps are needed for L2 bridge proxy, because it is already passed in previous step
-            new bytes[](0)
+            new bytes[](0),
+            _amount
         );
     }
 
     /// @notice Legacy deposit method with refunding the fee to the caller, use another `deposit` method instead.
     /// @dev Initiates a deposit by locking funds on the contract and sending the request
-    /// of processing an L2 transaction where tokens would be minted
+    /// of processing an L2 transaction where tokens would be minted.
+    /// @dev If the token is bridged for the first time, the L2 token contract will be deployed. Note however, that the
+    /// newly-deployed token does not support any custom logic, i.e. rebase tokens' functionality is not supported.
     /// @param _l2Receiver The account address that should receive funds on L2
     /// @param _l1Token The L1 token address which is deposited
     /// @param _amount The total amount of tokens to be bridged
@@ -139,19 +155,31 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
         address _l1Token,
         uint256 _amount,
         uint256 _l2TxGasLimit,
-        uint256 _l2TxGasPerPubdataByte
+        uint256 _l2TxGasPerPubdataByte,
+        uint256 _l2MaxFee
     ) external payable returns (bytes32 l2TxHash) {
-        l2TxHash = deposit(_l2Receiver, _l1Token, _amount, _l2TxGasLimit, _l2TxGasPerPubdataByte, address(0));
+        l2TxHash = deposit(
+            _l2Receiver,
+            _l1Token,
+            _amount,
+            _l2TxGasLimit,
+            _l2TxGasPerPubdataByte,
+            address(0),
+            _l2MaxFee
+        );    
     }
 
     /// @notice Initiates a deposit by locking funds on the contract and sending the request
     /// of processing an L2 transaction where tokens would be minted
+    /// @dev If the token is bridged for the first time, the L2 token contract will be deployed. Note however, that the
+    /// newly-deployed token does not support any custom logic, i.e. rebase tokens' functionality is not supported.
     /// @param _l2Receiver The account address that should receive funds on L2
     /// @param _l1Token The L1 token address which is deposited
     /// @param _amount The total amount of tokens to be bridged
     /// @param _l2TxGasLimit The L2 gas limit to be used in the corresponding L2 transaction
     /// @param _l2TxGasPerPubdataByte The gasPerPubdataByteLimit to be used in the corresponding L2 transaction
     /// @param _refundRecipient The address on L2 that will receive the refund for the transaction.
+    /// @param _l2MaxFee The max fee to be paid in L2.
     /// @dev If the L2 deposit finalization transaction fails, the `_refundRecipient` will receive the `_l2Value`.
     /// Please note, the contract may change the refund recipient's address to eliminate sending funds to addresses
     /// out of control.
@@ -172,34 +200,44 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
         uint256 _amount,
         uint256 _l2TxGasLimit,
         uint256 _l2TxGasPerPubdataByte,
-        address _refundRecipient
+        address _refundRecipient,
+        uint256 _l2MaxFee
     ) public payable nonReentrant returns (bytes32 l2TxHash) {
         require(_amount != 0, "2T"); // empty deposit amount
         uint256 amount = _depositFunds(msg.sender, IERC20(_l1Token), _amount);
         require(amount == _amount, "1T"); // The token has non-standard transfer logic
 
+        l2TxHash = _getRefundRecipientAndRequestL2Transaction(_refundRecipient, _l2MaxFee, _l2Receiver, _l1Token, _l2TxGasLimit, _l2TxGasPerPubdataByte, amount);
+        // Save the deposited amount to claim funds on L1 if the deposit failed on L2
+        depositAmount[msg.sender][_l1Token][l2TxHash] = amount;
+        emit DepositInitiated(l2TxHash, msg.sender, _l2Receiver, _l1Token, amount);
+    }
+
+    function _getRefundRecipientAndRequestL2Transaction(address _refundRecipient, uint256 _l2MaxFee, address _l2Receiver, address _l1Token, uint256 _l2TxGasLimit, uint256 _l2TxGasPerPubdataByte, uint256 amount) internal returns (bytes32) {
         bytes memory l2TxCalldata = _getDepositL2Calldata(msg.sender, _l2Receiver, _l1Token, amount);
         // If the refund recipient is not specified, the refund will be sent to the sender of the transaction.
         // Otherwise, the refund will be sent to the specified address.
         // If the recipient is a contract on L1, the address alias will be applied.
-        address refundRecipient = _refundRecipient;
-        if (_refundRecipient == address(0)) {
-            refundRecipient = msg.sender != tx.origin ? AddressAliasHelper.applyL1ToL2Alias(msg.sender) : msg.sender;
-        }
-        l2TxHash = zkSync.requestL2Transaction{value: msg.value}(
+        address refundRecipient = _getRefundRecipient(_refundRecipient);
+
+        return zkSync.requestL2Transaction{value: msg.value}(
             l2Bridge,
             0, // L2 msg.value
+            _l2MaxFee,
             l2TxCalldata,
             _l2TxGasLimit,
             _l2TxGasPerPubdataByte,
             new bytes[](0),
             refundRecipient
         );
+    }
 
-        // Save the deposited amount to claim funds on L1 if the deposit failed on L2
-        depositAmount[msg.sender][_l1Token][l2TxHash] = amount;
-
-        emit DepositInitiated(l2TxHash, msg.sender, _l2Receiver, _l1Token, amount);
+    // Refund recipient logic
+    function _getRefundRecipient(address _refundRecipient) internal view returns (address) {
+        return
+            _refundRecipient == address(0)
+                ? (msg.sender != tx.origin ? AddressAliasHelper.applyL1ToL2Alias(msg.sender) : msg.sender)
+                : _refundRecipient;
     }
 
     /// @dev Transfers tokens from the depositor address to the smart contract address
@@ -326,7 +364,7 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
 
     /// @return The L2 token address that would be minted for deposit of the given L1 token
     function l2TokenAddress(address _l1Token) public view returns (address) {
-        bytes32 constructorInputHash = keccak256(abi.encode(address(l2TokenBeacon), ""));
+        bytes32 constructorInputHash = keccak256(abi.encode(l2TokenBeacon, ""));
         bytes32 salt = bytes32(uint256(uint160(_l1Token)));
 
         return L2ContractHelper.computeCreate2Address(l2Bridge, salt, l2TokenProxyBytecodeHash, constructorInputHash);

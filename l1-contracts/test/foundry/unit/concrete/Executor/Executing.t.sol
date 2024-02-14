@@ -215,6 +215,7 @@ contract ExecutingTest is ExecutorTest {
         mailbox.requestL2Transaction{value: totalCost}(
             address(0),
             l2Value,
+            0,
             bytes(""),
             l2GasLimit,
             REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

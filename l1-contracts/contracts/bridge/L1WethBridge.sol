@@ -2,21 +2,25 @@
 
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./interfaces/IL1Bridge.sol";
-import "./interfaces/IL2WethBridge.sol";
-import "./interfaces/IL2Bridge.sol";
-import "./interfaces/IWETH9.sol";
-import "../zksync/interfaces/IZkSync.sol";
+import {IL1Bridge} from "./interfaces/IL1Bridge.sol";
+import {IL2WethBridge} from "./interfaces/IL2WethBridge.sol";
+import {IL2Bridge} from "./interfaces/IL2Bridge.sol";
+import {IWETH9} from "./interfaces/IWETH9.sol";
+import {IZkSync} from "../zksync/interfaces/IZkSync.sol";
 
-import "./libraries/BridgeInitializationHelper.sol";
+import {BridgeInitializationHelper} from "./libraries/BridgeInitializationHelper.sol";
 
-import "../common/libraries/UnsafeBytes.sol";
-import "../common/ReentrancyGuard.sol";
-import "../common/libraries/L2ContractHelper.sol";
+import {IMailbox} from "../zksync/interfaces/IMailbox.sol";
+import {L2Message} from "../zksync/Storage.sol";
+
+import {UnsafeBytes} from "../common/libraries/UnsafeBytes.sol";
+import {ReentrancyGuard} from "../common/ReentrancyGuard.sol";
+import {L2ContractHelper} from "../common/libraries/L2ContractHelper.sol";
 import {L2_ETH_TOKEN_SYSTEM_CONTRACT_ADDR} from "../common/L2ContractAddresses.sol";
-import "../vendor/AddressAliasHelper.sol";
+import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
@@ -52,7 +56,8 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
 
     /// @dev A mapping L2 batch number => message number => flag
     /// @dev Used to indicate that zkSync L2 -> L1 WETH message was already processed
-    mapping(uint256 => mapping(uint256 => bool)) public isWithdrawalFinalized;
+    mapping(uint256 l2BatchNumber => mapping(uint256 l2ToL1MessageNumber => bool isFinalized))
+        public isWithdrawalFinalized;
 
     /// @dev Contract is expected to be used as proxy implementation.
     /// @dev Initialize the implementation to prevent Parity hack.
@@ -68,24 +73,32 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
     /// @notice _factoryDeps[1] == a raw bytecode of proxy that is used as L2 WETH bridge
     /// @param _l2WethAddress Pre-calculated address of L2 WETH token
     /// @param _governor Address which can change L2 WETH token implementation and upgrade the bridge
-    /// @param _deployBridgeImplementationFee The fee that will be paid for the L1 -> L2 transaction for deploying L2
+    /// @param _deployBridgeImplementationFee The fee that will be paid for the L1 -> L2 transaction for deploying the L2
     /// bridge implementation
-    /// @param _deployBridgeProxyFee The fee that will be paid for the L1 -> L2 transaction for deploying L2 bridge
+    /// @param _deployBridgeProxyFee The fee that will be paid for the L1 -> L2 transaction for deploying the L2 bridge
     /// proxy
     function initialize(
         bytes[] calldata _factoryDeps,
         address _l2WethAddress,
         address _governor,
         uint256 _deployBridgeImplementationFee,
-        uint256 _deployBridgeProxyFee
+        uint256 _deployBridgeProxyFee,
+        uint256 _amount
     ) external payable reentrancyGuardInitializer {
+        bool nativeErc20 = _amount != 0;
+
         require(_l2WethAddress != address(0), "L2 WETH address cannot be zero");
         require(_governor != address(0), "Governor address cannot be zero");
         require(_factoryDeps.length == 2, "Invalid factory deps length provided");
-        require(
-            msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee,
-            "Miscalculated deploy transactions fees"
-        );
+        
+        if (nativeErc20) {
+            require(
+                _amount == _deployBridgeImplementationFee + _deployBridgeProxyFee,
+                "Miscalculated deploy transactions fees"
+            );
+        } else {
+            require(msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee, "Miscalculated deploy transactions fees");
+        }
 
         l2WethAddress = _l2WethAddress;
 
@@ -98,7 +111,8 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
             _deployBridgeImplementationFee,
             l2WethBridgeImplementationBytecodeHash,
             "", // Empty constructor data
-            _factoryDeps // All factory deps are needed for L2 bridge
+            _factoryDeps, // All factory deps are needed for L2 bridge
+            _amount
         );
 
         // Prepare the proxy constructor data
@@ -123,7 +137,8 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
             l2WethBridgeProxyBytecodeHash,
             l2WethBridgeProxyConstructorData,
             // No factory deps are needed for L2 bridge proxy, because it is already passed in the previous step
-            new bytes[](0)
+            new bytes[](0),
+            _amount
         );
     }
 
@@ -156,7 +171,8 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
         uint256 _amount,
         uint256 _l2TxGasLimit,
         uint256 _l2TxGasPerPubdataByte,
-        address _refundRecipient
+        address _refundRecipient,
+        uint256 _l2MaxFee
     ) external payable nonReentrant returns (bytes32 txHash) {
         require(_l1Token == l1WethAddress, "Invalid L1 token address");
         require(_amount != 0, "Amount cannot be zero");
@@ -179,6 +195,7 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
         txHash = zkSync.requestL2Transaction{value: _amount + msg.value}(
             l2Bridge,
             _amount,
+            _l2MaxFee,
             l2TxCalldata,
             _l2TxGasLimit,
             _l2TxGasPerPubdataByte,

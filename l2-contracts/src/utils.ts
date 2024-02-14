@@ -2,7 +2,7 @@ import { artifacts } from "hardhat";
 
 import { Interface } from "ethers/lib/utils";
 import type { Deployer } from "../../l1-contracts/src.ts/deploy";
-import { deployedAddressesFromEnv } from "../../l1-contracts/src.ts/deploy";
+import { deployedAddressesFromEnv } from "../../l1-contracts/scripts/utils";
 import { IZkSyncFactory } from "../../l1-contracts/typechain/IZkSyncFactory";
 
 import type { BigNumber, BytesLike, Wallet } from "ethers";
@@ -20,6 +20,13 @@ const ADDRESS_MODULO = ethers.BigNumber.from(2).pow(160);
 
 export function applyL1ToL2Alias(address: string): string {
   return ethers.utils.hexlify(ethers.BigNumber.from(address).add(L1_TO_L2_ALIAS_OFFSET).mod(ADDRESS_MODULO));
+}
+
+export function unapplyL1ToL2Alias(address: string): string {
+  // We still add ADDRESS_MODULO to avoid negative numbers
+  return ethers.utils.hexlify(
+    ethers.BigNumber.from(address).sub(L1_TO_L2_ALIAS_OFFSET).add(ADDRESS_MODULO).mod(ADDRESS_MODULO)
+  );
 }
 
 export function hashL2Bytecode(bytecode: ethers.BytesLike): Uint8Array {
@@ -77,7 +84,8 @@ export async function create2DeployFromL1(
   constructor: ethers.BytesLike,
   create2Salt: ethers.BytesLike,
   l2GasLimit: ethers.BigNumberish,
-  gasPrice?: ethers.BigNumberish
+  gasPrice?: ethers.BigNumberish,
+  nativeToken?: boolean
 ) {
   const zkSyncAddress = deployedAddressesFromEnv().ZkSync.DiamondProxy;
   const zkSync = IZkSyncFactory.connect(zkSyncAddress, wallet);
@@ -88,9 +96,13 @@ export async function create2DeployFromL1(
   gasPrice ??= await zkSync.provider.getGasPrice();
   const expectedCost = await zkSync.l2TransactionBaseCost(gasPrice, l2GasLimit, REQUIRED_L2_GAS_PRICE_PER_PUBDATA);
 
+  console.log(`VALUE: ${expectedCost}`);
+
+  // THIS IS THE FIRST DEPOSIT
   return await zkSync.requestL2Transaction(
     DEPLOYER_SYSTEM_CONTRACT_ADDRESS,
     0,
+    nativeToken? expectedCost : 0,
     calldata,
     l2GasLimit,
     REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
@@ -143,6 +155,7 @@ export async function getL1TxInfo(
   const zksync = deployer.zkSyncContract(ethers.Wallet.createRandom().connect(provider));
   const l1Calldata = zksync.interface.encodeFunctionData("requestL2Transaction", [
     to,
+    0,
     0,
     l2Calldata,
     priorityTxMaxGasLimit,

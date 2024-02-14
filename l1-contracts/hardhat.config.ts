@@ -9,6 +9,8 @@ import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/ta
 import { task } from "hardhat/config";
 import "solidity-coverage";
 import { getNumberFromEnv } from "./scripts/utils";
+import path = require("path");
+import * as fs from "fs";
 
 // If no network is specified, use the default config
 if (!process.env.CHAIN_ETH_NETWORK) {
@@ -22,6 +24,16 @@ const systemParams = require("../SystemConfig.json");
 const PRIORITY_TX_MAX_GAS_LIMIT = getNumberFromEnv("CONTRACTS_PRIORITY_TX_MAX_GAS_LIMIT");
 const DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT = getNumberFromEnv("CONTRACTS_DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT");
 
+const testConfigPath = path.join(process.env.ZKSYNC_HOME as string, "etc/tokens");
+let testConfigFile = fs.readFileSync(`${testConfigPath}/native_erc20.json`, { encoding: "utf-8" });
+
+if (testConfigFile === "") {
+  testConfigFile = '{ "address": "0x0" }';
+}
+
+const nativeERC20Token = JSON.parse(testConfigFile);
+const L1_NATIVE_TOKEN_ADDRESS = nativeERC20Token.address;
+
 const prodConfig = {
   UPGRADE_NOTICE_PERIOD: 0,
   // PRIORITY_EXPIRATION: 101,
@@ -30,6 +42,7 @@ const prodConfig = {
   PRIORITY_TX_MAX_GAS_LIMIT,
   DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
   DUMMY_VERIFIER: false,
+  L1_NATIVE_TOKEN_ADDRESS,
 };
 const testnetConfig = {
   UPGRADE_NOTICE_PERIOD: 0,
@@ -39,6 +52,7 @@ const testnetConfig = {
   PRIORITY_TX_MAX_GAS_LIMIT,
   DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
   DUMMY_VERIFIER: true,
+  L1_NATIVE_TOKEN_ADDRESS,
 };
 const testConfig = {
   UPGRADE_NOTICE_PERIOD: 0,
@@ -47,6 +61,7 @@ const testConfig = {
   PRIORITY_TX_MAX_GAS_LIMIT,
   DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
   DUMMY_VERIFIER: true,
+  L1_NATIVE_TOKEN_ADDRESS,
 };
 const localConfig = {
   ...prodConfig,
@@ -90,7 +105,19 @@ export default {
     defs: (() => {
       const defs = process.env.CONTRACT_TESTS ? contractDefs.test : contractDefs[process.env.CHAIN_ETH_NETWORK];
 
+      let path = `${process.env.ZKSYNC_HOME}/etc/tokens/native_erc20.json`;
+      let rawData = fs.readFileSync(path, "utf8");
+      let address = "0x52312AD6f01657413b2eaE9287f6B9ADaD93D5FE";
+      try {
+        let jsonConfig = JSON.parse(rawData);
+        address = jsonConfig.address;
+      } catch (_e) {
+        address = "0x52312AD6f01657413b2eaE9287f6B9ADaD93D5FE";
+      }
+
       return {
+        NATIVE_ERC20: process.env.NATIVE_ERC20,
+        NATIVE_ERC20_ADDRESS: address,
         ...systemParams,
         ...defs,
       };

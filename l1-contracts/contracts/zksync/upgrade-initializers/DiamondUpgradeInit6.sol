@@ -20,6 +20,7 @@ contract DiamondUpgradeInit6 is MailboxFacet {
             L2_FORCE_DEPLOYER_ADDR,
             L2_DEPLOYER_SYSTEM_CONTRACT_ADDR,
             0,
+            0,
             _upgradeL2WethTokenCalldata,
             $(PRIORITY_TX_MAX_GAS_LIMIT),
             REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
@@ -32,6 +33,7 @@ contract DiamondUpgradeInit6 is MailboxFacet {
         _requestL2Transaction(
             L2_FORCE_DEPLOYER_ADDR,
             L2_DEPLOYER_SYSTEM_CONTRACT_ADDR,
+            0,
             0,
             _upgradeSystemContractsCalldata,
             $(PRIORITY_TX_MAX_GAS_LIMIT),

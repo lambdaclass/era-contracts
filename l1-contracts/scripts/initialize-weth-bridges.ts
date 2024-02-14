@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { ethers, Wallet } from "ethers";
 import { formatUnits, parseUnits } from "ethers/lib/utils";
 import { Deployer } from "../src.ts/deploy";
-import { applyL1ToL2Alias, getNumberFromEnv, REQUIRED_L2_GAS_PRICE_PER_PUBDATA, web3Provider } from "./utils";
+import { applyL1ToL2Alias, getNumberFromEnv, SYSTEM_CONFIG, web3Provider } from "./utils";
 
 import * as fs from "fs";
 import * as path from "path";
@@ -39,13 +39,18 @@ async function main() {
     .option("--private-key <private-key>")
     .option("--gas-price <gas-price>")
     .option("--nonce <nonce>")
+    .option("--native-erc20")
     .action(async (cmd) => {
       const deployWallet = cmd.privateKey
         ? new Wallet(cmd.privateKey, provider)
         : Wallet.fromMnemonic(
             process.env.MNEMONIC ? process.env.MNEMONIC : ethTestConfig.mnemonic,
-            "m/44'/60'/0'/0/0"
+          "m/44'/60'/0'/0/0"
           ).connect(provider);
+
+      const nativeErc20impl = cmd.nativeErc20 ? true : false;
+      console.log(`Using native erc20: ${nativeErc20impl}`);
+
       console.log(`Using deployer wallet: ${deployWallet.address}`);
 
       const gasPrice = cmd.gasPrice ? parseUnits(cmd.gasPrice, "gwei") : await provider.getGasPrice();
@@ -73,7 +78,7 @@ async function main() {
       const requiredValueToInitializeBridge = await zkSync.l2TransactionBaseCost(
         gasPrice,
         DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
-        REQUIRED_L2_GAS_PRICE_PER_PUBDATA
+        SYSTEM_CONFIG.requiredL2GasPricePerPubdata
       );
 
       const tx = await l1WethBridge.initialize(
@@ -82,6 +87,7 @@ async function main() {
         l2GovernorAddress,
         requiredValueToInitializeBridge,
         requiredValueToInitializeBridge,
+        nativeErc20impl ? requiredValueToInitializeBridge.mul(2) : 0,
         {
           gasPrice,
           value: requiredValueToInitializeBridge.mul(2),

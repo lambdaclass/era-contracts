@@ -2,7 +2,9 @@
 
 pragma solidity 0.8.20;
 
+/// @title L1 Bridge contract interface
 /// @author Matter Labs
+/// @custom:security-contact security@matterlabs.dev
 interface IL1Bridge {
     event DepositInitiated(
         bytes32 indexed l2DepositTxHash,
@@ -24,7 +26,8 @@ interface IL1Bridge {
         uint256 _amount,
         uint256 _l2TxGasLimit,
         uint256 _l2TxGasPerPubdataByte,
-        address _refundRecipient
+        address _refundRecipient,
+        uint256 _l2MaxFee
     ) external payable returns (bytes32 txHash);
 
     function claimFailedDeposit(

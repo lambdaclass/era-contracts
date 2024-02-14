@@ -33,25 +33,35 @@ async function deployToken(token: TokenDescription, wallet: Wallet): Promise<Tok
   await erc20.deployTransaction.wait();
 
   if (token.implementation !== "WETH9") {
-    await erc20.mint(wallet.address, parseEther("3000000000"));
+    await erc20.mint(wallet.address, parseEther("30000000000000000"));
+    await erc20.approve(process.env.CONTRACTS_DIAMOND_PROXY_ADDR, parseEther("30000000000000000"));
+
   }
   for (let i = 0; i < 10; ++i) {
     const testWallet = Wallet.fromMnemonic(ethTestConfig.test_mnemonic as string, "m/44'/60'/0'/0/" + i).connect(
       provider
     );
     if (token.implementation !== "WETH9") {
-      await erc20.mint(testWallet.address, parseEther("3000000000"));
+      await erc20.mint(testWallet.address, parseEther("30000000000000000"));
     }
   }
 
   token.address = erc20.address;
-
   // Remove the unneeded field
   if (token.implementation) {
     delete token.implementation;
   }
 
   return token;
+}
+
+async function approve(token: TokenDescription, wallet: Wallet, spenderAddress: String): Promise<void> {
+  token.implementation = token.implementation || DEFAULT_ERC20;
+  const erc20 = (await hardhat.ethers.getContractFactory(token.implementation, wallet)).attach(token.address);
+  await erc20.mint(wallet.address, parseEther("300000000000000000000000000"));
+  await erc20.approve(spenderAddress, parseEther("300000000000000000000000000"));
+
+  return;
 }
 
 async function main() {
@@ -97,8 +107,32 @@ async function main() {
       for (const token of tokens) {
         result.push(await deployToken(token, wallet));
       }
-
       console.log(JSON.stringify(result, null, 2));
+    });
+
+  program
+    .command("approve")
+    .option("-t, --token-address <tokenAddress>")
+    .option("-s, --spender-address <spender>")
+    .description("kcyo")
+    .action(async (cmd) => {
+      const token: TokenDescription = {
+        address: cmd.tokenAddress,
+        name: null,
+        symbol: null,
+        decimals: null,
+        implementation: null,
+      };
+
+      let wallet = cmd.privateKey
+        ? new Wallet(cmd.privateKey, provider)
+        : Wallet.fromMnemonic(ethTestConfig.mnemonic, "m/44'/60'/0'/0/1").connect(provider);
+
+      console.log(JSON.stringify(await approve(token, wallet, cmd.spenderAddress), null, 2));
+
+      wallet = Wallet.fromMnemonic(ethTestConfig.mnemonic, "m/44'/60'/0'/0/0").connect(provider);
+
+      console.log(JSON.stringify(await approve(token, wallet, cmd.spenderAddress), null, 2));
     });
 
   await program.parseAsync(process.argv);

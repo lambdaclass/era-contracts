@@ -14,7 +14,7 @@ import {
 } from "../../typechain";
 import type { IL1Bridge } from "../../typechain/IL1Bridge";
 import { IL1BridgeFactory } from "../../typechain/IL1BridgeFactory";
-import { getCallRevertReason } from "./utils";
+import { defaultFeeParams, getCallRevertReason } from "./utils";
 
 describe("L1ERC20Bridge tests", function () {
   let owner: ethers.Signer;
@@ -61,6 +61,7 @@ describe("L1ERC20Bridge tests", function () {
         l2DefaultAccountBytecodeHash: dummyHash,
         priorityTxMaxGasLimit: 10000000,
         initialProtocolVersion: 0,
+        feeParams: defaultFeeParams(),
       },
     ]);
 
@@ -105,7 +106,8 @@ describe("L1ERC20Bridge tests", function () {
           0,
           0,
           0,
-          ethers.constants.AddressZero
+          ethers.constants.AddressZero,
+          0
         )
     );
     expect(revertReason).equal("2T");
@@ -205,6 +207,7 @@ async function depositERC20(
     l2GasLimit,
     REQUIRED_L1_TO_L2_GAS_PER_PUBDATA_LIMIT,
     l2RefundRecipient,
+    0, // l2MaxFee is only used for native token deposits
     {
       value: neededValue,
     }
