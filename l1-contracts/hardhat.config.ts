@@ -116,6 +116,7 @@ export default {
       }
 
       return {
+        NATIVE_ERC20: process.env.NATIVE_ERC20,
         NATIVE_ERC20_ADDRESS: address,
         ...systemParams,
         ...defs,

@@ -39,6 +39,7 @@ async function main() {
     .option("--private-key <private-key>")
     .option("--gas-price <gas-price>")
     .option("--nonce <nonce>")
+    .option("--native-erc20")
     .action(async (cmd) => {
       const deployWallet = cmd.privateKey
         ? new Wallet(cmd.privateKey, provider)
@@ -46,6 +47,10 @@ async function main() {
             process.env.MNEMONIC ? process.env.MNEMONIC : ethTestConfig.mnemonic,
           "m/44'/60'/0'/0/0"
           ).connect(provider);
+
+      const nativeErc20impl = cmd.nativeErc20 ? true : false;
+      console.log(`Using native erc20: ${nativeErc20impl}`);
+
       console.log(`Using deployer wallet: ${deployWallet.address}`);
 
       const gasPrice = cmd.gasPrice ? parseUnits(cmd.gasPrice, "gwei") : await provider.getGasPrice();
@@ -82,7 +87,7 @@ async function main() {
         l2GovernorAddress,
         requiredValueToInitializeBridge,
         requiredValueToInitializeBridge,
-        requiredValueToInitializeBridge.mul(2),
+        nativeErc20impl ? requiredValueToInitializeBridge.mul(2) : 0,
         {
           gasPrice,
           value: requiredValueToInitializeBridge.mul(2),

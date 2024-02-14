@@ -85,13 +85,20 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
         uint256 _deployBridgeProxyFee,
         uint256 _amount
     ) external payable reentrancyGuardInitializer {
+        bool nativeErc20 = _amount != 0;
+
         require(_l2WethAddress != address(0), "L2 WETH address cannot be zero");
         require(_governor != address(0), "Governor address cannot be zero");
         require(_factoryDeps.length == 2, "Invalid factory deps length provided");
-        require(
-            _amount == _deployBridgeImplementationFee + _deployBridgeProxyFee,
-            "Miscalculated deploy transactions fees"
-        );
+        
+        if (nativeErc20) {
+            require(
+                _amount == _deployBridgeImplementationFee + _deployBridgeProxyFee,
+                "Miscalculated deploy transactions fees"
+            );
+        } else {
+            require(msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee, "Miscalculated deploy transactions fees");
+        }
 
         l2WethAddress = _l2WethAddress;
 
@@ -164,7 +171,8 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
         uint256 _amount,
         uint256 _l2TxGasLimit,
         uint256 _l2TxGasPerPubdataByte,
-        address _refundRecipient
+        address _refundRecipient,
+        uint256 _l2MaxFee
     ) external payable nonReentrant returns (bytes32 txHash) {
         require(_l1Token == l1WethAddress, "Invalid L1 token address");
         require(_amount != 0, "Amount cannot be zero");
@@ -187,7 +195,7 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
         txHash = zkSync.requestL2Transaction{value: _amount + msg.value}(
             l2Bridge,
             _amount,
-            0,
+            _l2MaxFee,
             l2TxCalldata,
             _l2TxGasLimit,
             _l2TxGasPerPubdataByte,

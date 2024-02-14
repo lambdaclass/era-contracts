@@ -106,7 +106,8 @@ describe("L1ERC20Bridge tests", function () {
           0,
           0,
           0,
-          ethers.constants.AddressZero
+          ethers.constants.AddressZero,
+          0
         )
     );
     expect(revertReason).equal("2T");
@@ -206,6 +207,7 @@ async function depositERC20(
     l2GasLimit,
     REQUIRED_L1_TO_L2_GAS_PER_PUBDATA_LIMIT,
     l2RefundRecipient,
+    0, // l2MaxFee is only used for native token deposits
     {
       value: neededValue,
     }

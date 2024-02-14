@@ -124,6 +124,7 @@ async function main() {
     .option("--private-key <private-key>")
     .option("--gas-price <gas-price>")
     .option("--nonce <nonce>")
+    .option('--native-erc20')
     .action(async (cmd) => {
       if (!l1WethTokenAddress) {
         console.log("Base Layer WETH address not provided. Skipping.");
@@ -136,6 +137,10 @@ async function main() {
             process.env.MNEMONIC ? process.env.MNEMONIC : ethTestConfig.mnemonic,
             "m/44'/60'/0'/0/1"
           ).connect(provider);
+
+      const nativeErc20impl = cmd.nativeErc20 ? true : false;
+      console.log(`Using native erc20: ${nativeErc20impl}`);
+
       console.log(`Using deployer wallet: ${deployWallet.address}`);
 
       const gasPrice = cmd.gasPrice ? parseUnits(cmd.gasPrice, "gwei") : await provider.getGasPrice();
@@ -160,7 +165,7 @@ async function main() {
       const tx = await zkSync.requestL2Transaction(
         l2WethTokenProxyAddress,
         0,
-        requiredValueToInitializeBridge,
+        nativeErc20impl? requiredValueToInitializeBridge : 0,
         calldata,
         DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
         SYSTEM_CONFIG.requiredL2GasPricePerPubdata,

@@ -84,7 +84,8 @@ export async function create2DeployFromL1(
   constructor: ethers.BytesLike,
   create2Salt: ethers.BytesLike,
   l2GasLimit: ethers.BigNumberish,
-  gasPrice?: ethers.BigNumberish
+  gasPrice?: ethers.BigNumberish,
+  nativeToken?: boolean
 ) {
   const zkSyncAddress = deployedAddressesFromEnv().ZkSync.DiamondProxy;
   const zkSync = IZkSyncFactory.connect(zkSyncAddress, wallet);
@@ -101,7 +102,7 @@ export async function create2DeployFromL1(
   return await zkSync.requestL2Transaction(
     DEPLOYER_SYSTEM_CONTRACT_ADDRESS,
     0,
-    expectedCost,
+    nativeToken? expectedCost : 0,
     calldata,
     l2GasLimit,
     REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

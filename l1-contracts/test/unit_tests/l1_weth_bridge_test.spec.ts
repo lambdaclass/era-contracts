@@ -94,7 +94,7 @@ describe("WETH Bridge tests", () => {
         priorityTxMaxGasLimit: 10000000,
         initialProtocolVersion: 0,
         feeParams: defaultFeeParams(),
-      },
+      },    
     ]);
 
     const facetCuts = [
@@ -126,6 +126,7 @@ describe("WETH Bridge tests", () => {
       await owner.getAddress(),
       ethers.constants.WeiPerEther,
       ethers.constants.WeiPerEther,
+      0
     ]);
     const _bridgeProxy = await (
       await hardhat.ethers.getContractFactory("ERC1967Proxy")
@@ -144,7 +145,8 @@ describe("WETH Bridge tests", () => {
           0,
           0,
           0,
-          ethers.constants.AddressZero
+          ethers.constants.AddressZero,
+          0
         )
     );
 
@@ -163,6 +165,7 @@ describe("WETH Bridge tests", () => {
         1000000,
         REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
         await randomSigner.getAddress(),
+        0,
         { value: ethers.constants.WeiPerEther }
       );
   });
