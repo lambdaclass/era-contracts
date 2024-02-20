@@ -108,7 +108,7 @@ export async function create2DeployFromL1(
     REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
     [bytecode],
     wallet.address,
-    { value: expectedCost, gasPrice }
+    { value: nativeToken? 0 : expectedCost, gasPrice }
   );
 }
 

@@ -307,13 +307,15 @@ contract MailboxFacet is Base, IMailbox {
         // Check if we are operating with native tokens.
         // #if NATIVE_ERC20 == true
         // The address of the token that is used in the L2 as native.
-        address nativeTokenAddress = address($(L1_NATIVE_TOKEN_ADDRESS));
-        // Check balance and allowance.
-        require(IERC20(nativeTokenAddress).balanceOf(tx.origin) >= amount, "Not enough balance");
-        require(IERC20(nativeTokenAddress).allowance(tx.origin, address(this)) >= amount, "Not enough allowance");
+        {
+            address nativeTokenAddress = address($(L1_NATIVE_TOKEN_ADDRESS));
+            // Check balance and allowance.
+            require(IERC20(nativeTokenAddress).balanceOf(tx.origin) >= amount, "Not enough balance");
+            require(IERC20(nativeTokenAddress).allowance(tx.origin, address(this)) >= amount, "Not enough allowance");
 
-        // Transfer tokens to the contract.
-        IERC20(nativeTokenAddress).safeTransferFrom(tx.origin, address(this), amount);
+            // Transfer tokens to the contract.
+            IERC20(nativeTokenAddress).safeTransferFrom(tx.origin, address(this), amount);
+        }
         // #endif
 
         params.sender = _sender;

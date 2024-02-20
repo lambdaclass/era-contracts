@@ -42,6 +42,7 @@ async function main() {
   program.version("0.1.0").name("deploy-l2-weth");
 
   program
+    .option("--native-erc20")
     .option("--private-key <private-key>")
     .option("--gas-price <gas-price>")
     .option("--nonce <nonce>")
@@ -99,13 +100,18 @@ async function main() {
         ethers.constants.HashZero
       );
 
+      const nativeErc20impl = cmd.nativeErc20 ? true : false;
+
       const tx = await create2DeployFromL1(
         deployWallet,
         L2_WETH_IMPLEMENTATION_BYTECODE,
         "0x",
         ethers.constants.HashZero,
-        priorityTxMaxGasLimit
+        priorityTxMaxGasLimit,
+        undefined,
+        nativeErc20impl
       );
+
       console.log(
         `WETH implementation transaction sent with hash ${tx.hash} and nonce ${tx.nonce}. Waiting for receipt...`
       );
@@ -117,7 +123,9 @@ async function main() {
         L2_WETH_PROXY_BYTECODE,
         l2ERC20BridgeProxyConstructor,
         ethers.constants.HashZero,
-        priorityTxMaxGasLimit
+        priorityTxMaxGasLimit,
+        undefined,
+        nativeErc20impl
       );
       console.log(`WETH proxy transaction sent with hash ${tx2.hash} and nonce ${tx2.nonce}. Waiting for receipt...`);
 

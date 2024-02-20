@@ -32,7 +32,7 @@ async function main() {
     const testnetPaymasterBytecode = hre.artifacts.readArtifactSync("TestnetPaymaster").bytecode;
     const create2Salt = ethers.constants.HashZero;
     const paymasterAddress = computeL2Create2Address(deployWallet, testnetPaymasterBytecode, "0x", create2Salt);
-    const nativeErc20impl = cmd.nativeErc20 ? true : false;  
+    const nativeErc20impl = cmd.nativeErc20 ? true : false;
 
     // TODO: request from API how many L2 gas needs for the transaction.
     await (
