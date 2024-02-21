@@ -111,8 +111,7 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
             _deployBridgeImplementationFee,
             l2WethBridgeImplementationBytecodeHash,
             "", // Empty constructor data
-            _factoryDeps, // All factory deps are needed for L2 bridge
-            _amount
+            _factoryDeps // All factory deps are needed for L2 bridge
         );
 
         // Prepare the proxy constructor data
@@ -137,8 +136,7 @@ contract L1WethBridge is IL1Bridge, ReentrancyGuard {
             l2WethBridgeProxyBytecodeHash,
             l2WethBridgeProxyConstructorData,
             // No factory deps are needed for L2 bridge proxy, because it is already passed in the previous step
-            new bytes[](0),
-            _amount
+            new bytes[](0)
         );
     }
 

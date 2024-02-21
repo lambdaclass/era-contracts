@@ -23,7 +23,10 @@ async function main() {
     .name("deploy-force-deploy-upgrader")
     .description("Deploys the force deploy upgrader contract to L2");
 
-  program.option("--private-key <private-key>").action(async (cmd) => {
+  program
+    .option("--native-erc20")
+    .option("--private-key <private-key>")
+    .action(async (cmd) => {
     const deployWallet = cmd.privateKey
       ? new Wallet(cmd.privateKey, provider)
       : Wallet.fromMnemonic(
@@ -31,6 +34,7 @@ async function main() {
           "m/44'/60'/0'/0/1"
         ).connect(provider);
     console.log(`Using deployer wallet: ${deployWallet.address}`);
+    const nativeErc20impl = cmd.nativeErc20 ? true : false;
 
     const forceDeployUpgraderBytecode = hre.artifacts.readArtifactSync("ForceDeployUpgrader").bytecode;
     const create2Salt = ethers.constants.HashZero;
@@ -42,7 +46,7 @@ async function main() {
     );
 
     // TODO: request from API how many L2 gas needs for the transaction.
-    await create2DeployFromL1(deployWallet, forceDeployUpgraderBytecode, "0x", create2Salt, priorityTxMaxGasLimit);
+    await create2DeployFromL1(deployWallet, forceDeployUpgraderBytecode, "0x", create2Salt, priorityTxMaxGasLimit, undefined, nativeErc20impl);
 
     console.log(`CONTRACTS_L2_DEFAULT_UPGRADE_ADDR=${forceDeployUpgraderAddress}`);
   });

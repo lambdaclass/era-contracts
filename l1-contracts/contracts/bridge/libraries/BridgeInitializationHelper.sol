@@ -32,17 +32,31 @@ library BridgeInitializationHelper {
         uint256 _deployTransactionFee,
         bytes32 _bytecodeHash,
         bytes memory _constructorData,
-        bytes[] memory _factoryDeps,
-        uint256 _amount
+        bytes[] memory _factoryDeps
     ) internal returns (address deployedAddress) {
         bytes memory deployCalldata = abi.encodeCall(
             IL2ContractDeployer.create2,
             (bytes32(0), _bytecodeHash, _constructorData)
         );
-        _zkSync.requestL2Transaction{value: _deployTransactionFee}(
+
+        uint256 msgValue;
+        uint256 amount;
+
+        // Using the preprocessor to set the right values, as the `msg.value` and `amount` are not allowed to be set in the same transaction.
+        // In the native ERC20 case, the `msg.value` is set to 0, and the `amount` is set to the value of the ERC20 tokens to be transferred.
+        // In the ETH case, the `msg.value` is set to the value of the ETH to be transferred, and the `amount` is set to 0.
+        // #if NATIVE_ERC20 == false
+        msgValue = _deployTransactionFee;
+        amount = 0;
+        // #else
+        msgValue = 0;
+        amount = _deployTransactionFee;
+        // #endif
+
+        _zkSync.requestL2Transaction{value: msgValue}(
             L2_DEPLOYER_SYSTEM_CONTRACT_ADDR,
             0,
-            _amount,
+            amount,
             deployCalldata,
             DEPLOY_L2_BRIDGE_COUNTERPART_GAS_LIMIT,
             REQUIRED_L2_GAS_PRICE_PER_PUBDATA,

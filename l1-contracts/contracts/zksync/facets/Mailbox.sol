@@ -236,6 +236,13 @@ contract MailboxFacet is Base, IMailbox {
             sender = AddressAliasHelper.applyL1ToL2Alias(msg.sender);
         }
 
+        // Using the preprocessor to ensure that in the case of ETH as native, _amount is 0. Else, in the case of ERC20 as native, msg.value is 0.\
+        // #if NATIVE_ERC20 == false
+        require(_amount == 0, "_amount should be 0");
+        // #elif NATIVE_ERC20 == true
+        require(msg.value == 0, "msg.value should be 0");
+        // #endif
+
         // Enforcing that `_l2GasPerPubdataByteLimit` equals to a certain constant number. This is needed
         // to ensure that users do not get used to using "exotic" numbers for _l2GasPerPubdataByteLimit, e.g. 1-2, etc.
         // VERY IMPORTANT: nobody should rely on this constant to be fixed and every contract should give their users the ability to provide the
@@ -274,8 +281,13 @@ contract MailboxFacet is Base, IMailbox {
         // Here we manually assign fields for the struct to prevent "stack too deep" error
         WritePriorityOpParams memory params;
 
-        uint256 amount = _amount != 0 ? _amount : msg.value;
-        // uint256 amount = msg.value;
+        // Using the preprocessor to set the amount depending on the native token.
+        // In case of ETH as native, the amount is set to the value of the transaction. In case of ERC20 as native, the amount is set to the value of the `_amount` parameter.
+        // #if NATIVE_ERC20 == false
+        uint256 amount = msg.value;
+        // #elif NATIVE_ERC20 == true
+        uint256 amount = _amount;
+        // #endif
 
         // Checking that the user provided enough ether to pay for the transaction.
         // Using a new scope to prevent "stack too deep" error
@@ -293,8 +305,9 @@ contract MailboxFacet is Base, IMailbox {
         }
 
         // Check if we are operating with native tokens.
-        if (_amount != 0) { 
-            // The address of the token that is used in the L2 as native.
+        // #if NATIVE_ERC20 == true
+        // The address of the token that is used in the L2 as native.
+        {
             address nativeTokenAddress = address($(L1_NATIVE_TOKEN_ADDRESS));
             // Check balance and allowance.
             require(IERC20(nativeTokenAddress).balanceOf(tx.origin) >= amount, "Not enough balance");
@@ -303,6 +316,7 @@ contract MailboxFacet is Base, IMailbox {
             // Transfer tokens to the contract.
             IERC20(nativeTokenAddress).safeTransferFrom(tx.origin, address(this), amount);
         }
+        // #endif
 
         params.sender = _sender;
         params.txId = s.priorityQueue.getTotalPriorityTxs();

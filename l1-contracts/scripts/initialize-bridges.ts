@@ -163,7 +163,7 @@ async function main() {
           SYSTEM_CONFIG.requiredL2GasPricePerPubdata,
           [L2_STANDARD_ERC20_PROXY_FACTORY_BYTECODE, L2_STANDARD_ERC20_IMPLEMENTATION_BYTECODE],
           deployWallet.address,
-          { gasPrice, nonce, value: requiredValueToPublishBytecodes }
+          { gasPrice, nonce, value: nativeErc20impl ? 0 : requiredValueToPublishBytecodes }
         ),
         erc20Bridge.initialize(
           [L2_ERC20_BRIDGE_IMPLEMENTATION_BYTECODE, L2_ERC20_BRIDGE_PROXY_BYTECODE, L2_STANDARD_ERC20_PROXY_BYTECODE],
@@ -175,7 +175,7 @@ async function main() {
           {
             gasPrice,
             nonce: nonce + 1,
-            value: requiredValueToInitializeBridge.mul(2),
+            value: nativeErc20impl ? 0 : requiredValueToInitializeBridge.mul(2),
           }
         ),
       ];

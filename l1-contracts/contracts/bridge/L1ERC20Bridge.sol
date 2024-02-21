@@ -87,18 +87,26 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
         uint256 _deployBridgeProxyFee,
         uint256 _amount
     ) external payable reentrancyGuardInitializer {
-        bool nativeErc20 = _amount != 0;
-
         require(_l2TokenBeacon != address(0), "nf");
         require(_governor != address(0), "nh");
         // We are expecting to see the exact three bytecodes that are needed to initialize the bridge
         require(_factoryDeps.length == 3, "mk");
-        // The caller miscalculated deploy transactions fees
-        if (nativeErc20) {
-            require(_amount == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
-        } else {
-            require(msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
-        }
+
+        uint256 amount;
+        // using the preprocessor to check the fees
+        // In the case of native ERC20, the fees are expected to be sent in the _amount field
+        // In the case of native ETH, the fees are expected to be sent in the msg.value field
+        // #if NATIVE_ERC20 == false
+        require(_amount == 0, "amount should be 0");
+        require(msg.value == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        amount = msg.value;
+        // #else
+        // In this case, we also should transfer the tokens from the sender to the contract.
+        require(msg.value == 0, "msg.value should be 0");
+        require(_amount == _deployBridgeImplementationFee + _deployBridgeProxyFee, "fee");
+        amount = _amount;
+        // #endif
+
         l2TokenProxyBytecodeHash = L2ContractHelper.hashL2Bytecode(_factoryDeps[2]);
         l2TokenBeacon = _l2TokenBeacon;
 
@@ -111,8 +119,7 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
             _deployBridgeImplementationFee,
             l2BridgeImplementationBytecodeHash,
             "", // Empty constructor data
-            _factoryDeps, // All factory deps are needed for L2 bridge
-            _amount
+            _factoryDeps // All factory deps are needed for L2 bridge
         );
 
         // Prepare the proxy constructor data
@@ -133,8 +140,7 @@ contract L1ERC20Bridge is IL1Bridge, IL1BridgeLegacy, ReentrancyGuard {
             l2BridgeProxyBytecodeHash,
             l2BridgeProxyConstructorData,
             // No factory deps are needed for L2 bridge proxy, because it is already passed in previous step
-            new bytes[](0),
-            _amount
+            new bytes[](0)
         );
     }
 
