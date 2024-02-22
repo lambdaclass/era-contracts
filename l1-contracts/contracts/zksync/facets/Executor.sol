@@ -8,7 +8,7 @@ import {IExecutor, L2_LOG_ADDRESS_OFFSET, L2_LOG_KEY_OFFSET, L2_LOG_VALUE_OFFSET
 import {PriorityQueue, PriorityOperation} from "../libraries/PriorityQueue.sol";
 import {UncheckedMath} from "../../common/libraries/UncheckedMath.sol";
 import {UnsafeBytes} from "../../common/libraries/UnsafeBytes.sol";
-import {VerifierParams} from "../Storage.sol";
+import {VerifierParams, PubdataPricingMode} from "../Storage.sol";
 import {L2_BOOTLOADER_ADDRESS, L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR, L2_SYSTEM_CONTEXT_SYSTEM_CONTRACT_ADDR} from "../../common/L2ContractAddresses.sol";
 
 // While formally the following import is not used, it is needed to inherit documentation from it
@@ -23,8 +23,6 @@ contract ExecutorFacet is Base, IExecutor {
 
     /// @inheritdoc IBase
     string public constant override getName = "ExecutorFacet";
-
-    bool constant VALIDIUM_MODE = $(VALIDIUM_MODE);
 
     /// @dev Process one batch commit using the previous batch StoredBatchInfo
     /// @dev returns new batch StoredBatchInfo
@@ -108,7 +106,7 @@ contract ExecutorFacet is Base, IExecutor {
         bytes32 _expectedSystemContractUpgradeTxHash
     )
         internal
-        pure
+        view
         returns (
             uint256 numberOfLayer1Txs,
             bytes32 chainedPriorityTxsHash,
@@ -125,9 +123,10 @@ contract ExecutorFacet is Base, IExecutor {
         // See SystemLogKey enum in Constants.sol for ordering.
         uint256 processedLogs;
 
-        // #if VALIDIUM_MODE == false
-        bytes32 providedL2ToL1PubdataHash = keccak256(_newBatch.totalL2ToL1Pubdata);
-        // #endif
+        bytes32 providedL2ToL1PubdataHash;
+        if (s.feeParams.pubdataPricingMode == PubdataPricingMode.Rollup) {
+            providedL2ToL1PubdataHash = keccak256(_newBatch.totalL2ToL1Pubdata);
+        }
 
         // linear traversal of the logs
         for (uint256 i = 0; i < emittedL2Logs.length; i = i.uncheckedAdd(L2_TO_L1_LOG_SERIALIZE_SIZE)) {
@@ -145,10 +144,10 @@ contract ExecutorFacet is Base, IExecutor {
                 require(logSender == L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR, "lm");
                 l2LogsTreeRoot = logValue;
             } else if (logKey == uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY)) {
-            // #if VALIDIUM_MODE == false
-                require(logSender == L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR, "ln");
-                require(providedL2ToL1PubdataHash == logValue, "wp");
-            // #endif
+                if (s.feeParams.pubdataPricingMode == PubdataPricingMode.Rollup) {
+                    require(logSender == L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR, "ln");
+                    require(providedL2ToL1PubdataHash == logValue, "wp");
+                }
             } else if (logKey == uint256(SystemLogKey.STATE_DIFF_HASH_KEY)) {
                 require(logSender == L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR, "lb");
                 stateDiffHash = logValue;
