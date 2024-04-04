@@ -2,12 +2,28 @@ object "EVMInterpreter" {
     code { }
     object "EVMInterpreter_deployed" {
         code {
+            function SYSTEM_CONTRACTS_OFFSET() -> offset {
+                offset := 0x8000
+            }
+
+            function ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT() -> offset {
+                offset := 0x0000000000000000000000000000000000008002
+            }
+
+            function CODE_ADDRESS_CALL_ADDRESS() -> addr {
+                addr := 0x000000000000000000000000000000000000FFFE
+            }
+
+            function CODE_ORACLE_SYSTEM_CONTRACT() -> offset {
+                offset := 0x0000000000000000000000000000000000008012
+            }
+
             function DEBUG_SLOT_OFFSET() -> offset {
                 offset := mul(32, 32)
             }
 
             function LAST_RETURNDATA_SIZE_OFFSET() -> offset {
-                offset := mul(add(DEBUG_SLOT_OFFSET(), 5), 32)
+                offset := add(DEBUG_SLOT_OFFSET(), mul(5, 32))
             }
 
             function STACK_OFFSET() -> offset {
@@ -15,7 +31,7 @@ object "EVMInterpreter" {
             }
 
             function BYTECODE_OFFSET() -> offset {
-                offset := mul(add(STACK_OFFSET(), 1024), 32)
+                offset := add(STACK_OFFSET(), mul(1024, 32))
             }
 
             function MAX_POSSIBLE_BYTECODE() -> max {
@@ -36,7 +52,9 @@ object "EVMInterpreter" {
                 let bytecodeLen := mload(BYTECODE_OFFSET())
 
                 let maxAcceptablePos := add(add(BYTECODE_OFFSET(), bytecodeLen), 31)
-                revert(gt(ip, maxAcceptablePos), "Ip past max acceptable position")
+                if gt(ip, maxAcceptablePos) {
+                    revert(0, "Ip past max acceptable position")
+                }
 
                 opcode := and(mload(sub(ip, 31)), 0xff)
             }
@@ -56,21 +74,74 @@ object "EVMInterpreter" {
                 mstore(NewSp, item)
             }
 
+            function getCodeAddress() -> addr {
+                addr := staticcall(0, CODE_ADDRESS_CALL_ADDRESS(), 0, 0xFFFF, 0, 0)
+            }
+
+            function _getRawCodeHash(account) -> hash {
+                let selector := 0x4de2e468
+                mstore(0, selector)
+                mstore(4, account)
+                let success := staticcall(gas(), ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT(), 0, 36, 0, 32)
+    
+                if iszero(success) {
+                    // This error should never happen
+                    revert(0, 0)
+                }
+    
+                hash := mload(0)
+            }
+
+            function _fetchDeployedCode(addr, _offset, _len) -> codeLen {
+                let codeHash := _getRawCodeHash(addr)
+
+                mstore(0, codeHash)
+
+                let success := staticcall(gas(), CODE_ORACLE_SYSTEM_CONTRACT(), 0, 32, 0, 0)
+                if iszero(success) {
+                    revert(0, 0)
+                }
+
+                // The first word is the true length of the bytecode
+                returndatacopy(0, 0, 32)
+                codeLen := mload(0)
+
+                if gt(_len, codeLen) {
+                    _len := codeLen
+                }
+
+                returndatacopy(_offset, 32, _len)
+            }
+
+            function getDeployedBytecode() {
+                let codeLen := _fetchDeployedCode(
+                    getCodeAddress(),
+                    add(BYTECODE_OFFSET(), 32),
+                    MAX_POSSIBLE_BYTECODE()
+                )
+
+                mstore(BYTECODE_OFFSET(), codeLen)
+            }
+
             ////////////////////////////////////////////////////////////////
             //                      FALLBACK
             ////////////////////////////////////////////////////////////////
+
+            // First, copy the contract's bytecode to be executed into the `BYTECODE_OFFSET`
+            // segment of memory.
+            getDeployedBytecode()
 
             // top of stack - index to first stack element; empty stack = -1
             // (this is simpler than tos = stack.length, cleaner code)
             // note it is technically possible to underflow due to the unchecked
             // but that will immediately revert due to out of bounds memory access -> out of gas
             let sp := sub(STACK_OFFSET(), 32)
+            let ip := add(BYTECODE_OFFSET(), 32)
 
-            for { let ip := add(BYTECODE_OFFSET(), 32) } true { ip := add(ip, 1) } {
+            for { } true { } {
                 let opcode := readIP(ip)
 
-                sstore(0, opcode)
-                return(0, 64)
+                ip := add(ip, 1)
 
                 switch opcode
                 case 0x00 { // OP_STOP
@@ -106,6 +177,7 @@ object "EVMInterpreter" {
                     continue
                 }
                 case 0x55 { // OP_SSTORE
+                    // TODO
                     sstore(0, 1)
                     return(0, 64)
 
@@ -125,3 +197,4 @@ object "EVMInterpreter" {
         }
     }
 }
+
