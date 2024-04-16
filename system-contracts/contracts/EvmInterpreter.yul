@@ -402,16 +402,78 @@ object "EVMInterpreter" {
             originalValue := mload(32)
         }
 
-        function getNonce() -> nonce {
+
+        function warmAddress(addr) -> isWarm {
+            // TODO: Unhardcode this selector 0x8db2ba78
+            mstore8(0, 0x8d)
+            mstore8(1, 0xb2)
+            mstore8(2, 0xba)
+            mstore8(3, 0x78)
+            mstore(4, addr)
+            let success := call(gas(), EVM_GAS_MANAGER_CONTRACT(), 0, 0, 36, 0, 32)
+
+            if iszero(success) {
+                // This error should never happen
+                revert(0, 0)
+            }
+
+            isWarm := mload(0)
+        }
+
+        function getNonce(addr) -> nonce {
             mstore8(0, 0xfb)
             mstore8(1, 0x1a)
             mstore8(2, 0x9a)
             mstore8(3, 0x57)
-            mstore(4, address())
-
+            mstore(4, addr)
             let result := staticcall(gas(), NONCE_HOLDER_SYSTEM_CONTRACT(), 0, 36, 0, 32)
-
             nonce := mload(0)
+        }
+
+        function performCall(oldSp,evmGasLeft) -> dynamicGas,sp {
+            let gasSend,addr,value,argsOffset,argsSize,retOffset,retSize
+                        
+            gasSend, sp := popStackItem(oldSp)
+            addr, sp := popStackItem(sp)
+            value, sp := popStackItem(sp)
+            argsOffset, sp := popStackItem(sp)
+            argsSize, sp := popStackItem(sp)
+            retOffset, sp := popStackItem(sp)
+            retSize, sp := popStackItem(sp)
+
+
+            // code_execution_cost is the cost of the called code execution (limited by the gas parameter).
+            // If address is warm, then address_access_cost is 100, otherwise it is 2600. See section access sets.
+            // If value is not 0, then positive_value_cost is 9000. In this case there is also a call stipend that is given to make sure that a basic fallback function can be called. 2300 is thus removed from the cost, and also added to the gas input.
+            // If value is not 0 and the address given points to an empty account, then value_to_empty_account_cost is 25000. An account is empty if its balance is 0, its nonce is 0 and it has no code.
+            dynamicGas := expandMemory(add(retOffset,retSize))
+            switch warmAddress(addr)
+                case 0 { dynamicGas := add(dynamicGas,2600) }
+                default { dynamicGas := add(dynamicGas,100) }
+
+            if not(iszero(value)) {
+                dynamicGas := add(dynamicGas,6700)
+                gasSend := add(gasSend,2300)
+
+                if isAddrEmpty(addr) {
+                    dynamicGas := add(dynamicGas,25000)
+                }
+            }
+
+            if gt(gasSend,div(mul(evmGasLeft,63),64)) {
+                gasSend := div(mul(evmGasLeft,63),64)
+            }
+            argsOffset := add(argsOffset,MEM_OFFSET_INNER())
+            retOffset := add(retOffset,MEM_OFFSET_INNER())
+            // TODO: More Checks are needed
+            let success := call(gasSend,addr,value,argsOffset,argsSize,retOffset,retSize)
+
+            sp := pushStackItem(sp,success)
+
+            // TODO: dynamicGas := add(dynamicGas,codeExecutionCost) how to do this?
+            // Check if the following is ok
+            dynamicGas := add(dynamicGas,gasSend)
+            evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
         }
 
         function getEVMGas() -> evmGas {
@@ -437,6 +499,17 @@ object "EVMInterpreter" {
 
             let gasForCode := mul(len, 200)
             returnGas := chargeGas(gasToReturn, gasForCode)
+        }
+
+        function isAddrEmpty(addr) -> isEmpty {
+            isEmpty := 0
+            if  and( and( 
+                    iszero(balance(addr)), 
+                    iszero(extcodesize(addr)) ),
+                    iszero(getNonce(addr))
+                ) {
+                isEmpty := 1
+            }
         }
 
         function simulate(
@@ -1286,7 +1359,7 @@ object "EVMInterpreter" {
                     {
                         let digest, nonce, addressEncoded, nonceEncoded, listLength, listLengthEconded
 
-                        nonce := getNonce()
+                        //nonce := getNonce()
                         printString("getNonce")
                         printHex(nonce)
 
@@ -1359,6 +1432,13 @@ object "EVMInterpreter" {
                     let result := call(gas(), DEPLOYER_SYSTEM_CONTRACT(), 0, offset, 188, 0, 0)
 
                     sp := pushStackItem(sp, addr)
+                }
+                case 0xF1 { // OP_CALL
+                    let dynamicGas
+                    // A function was implemented in order to avoid stack depth errors.
+                    dynamicGas, sp := performCall(sp,evmGasLeft)
+
+                    evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
                 }
                 // TODO: REST OF OPCODES
                 default {
