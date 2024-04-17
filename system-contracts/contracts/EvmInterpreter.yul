@@ -1982,7 +1982,7 @@ object "EVMInterpreter" {
                 mstore(lastRtSzOffset, returndatasize())
             }
 
-            function performCall(oldSp,evmGasLeft) -> dynamicGas,sp {
+            function performCall(oldSp, evmGasLeft, isStatic) -> dynamicGas,sp {
                 let gasSend,addr,value,argsOffset,argsSize,retOffset,retSize
                             
                 gasSend, sp := popStackItem(oldSp)
@@ -2018,7 +2018,19 @@ object "EVMInterpreter" {
                 argsOffset := add(argsOffset,MEM_OFFSET_INNER())
                 retOffset := add(retOffset,MEM_OFFSET_INNER())
                 // TODO: More Checks are needed
-                let success := call(gasSend,addr,value,argsOffset,argsSize,retOffset,retSize)
+                // Check gas
+                let success
+                success, evmGasLeft := _performCall(
+                                        _isEVM(addr),
+                                        isStatic,
+                                        gasSend,
+                                        addr,
+                                        value,
+                                        argsOffset,
+                                        argsSize,
+                                        retOffset,
+                                        retSize
+                                    )
     
                 sp := pushStackItem(sp,success)
     
@@ -2026,6 +2038,99 @@ object "EVMInterpreter" {
                 // Check if the following is ok
                 dynamicGas := add(dynamicGas,gasSend)
                 evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
+            }
+
+            // This function is called inside performCall()
+            // TODO: optimize after it works
+            function _performCall(
+                _calleeIsEVM,
+                _isStatic,
+                _calleeGas,
+                _callee,
+                _value,
+                _inputOffset,
+                _inputLen,
+                _outputOffset,
+                _outputLen
+            ) -> success, _gasLeft {
+                // From evm_codes, reverts if:
+                // The current execution context is from a STATICCALL 
+                // and the value (stack index 2) is not 0 (since Byzantium fork).
+                if _isStatic {
+                    if not(iszero(_value)) {
+                        revert(0, 0)
+                    }
+                    success, _gasLeft := _performStaticCall(
+                        _calleeIsEVM,
+                        _calleeGas,
+                        _callee,
+                        _inputOffset,
+                        _inputLen,
+                        _outputOffset,
+                        _outputLen
+                    )
+                }
+
+                if _calleeIsEVM {
+                    _pushEVMFrame(_calleeGas, _isStatic)
+                    success := call(_calleeGas, _callee, _value, _inputOffset, _inputLen, 0, 0)
+
+                    _gasLeft := _saveReturndataAfterEVMCall(_outputOffset, _outputLen)
+                    _popEVMFrame()
+                }
+
+                // zkEVM native
+                if and(not(_calleeIsEVM), not(_isStatic)) {
+                    _calleeGas := _getZkEVMGas(_calleeGas)
+                    let zkevmGasBefore := gas()
+                    success := call(_calleeGas, _callee, _value, _inputOffset, _inputLen, _outputOffset, _outputLen)
+
+                    _saveReturndataAfterZkEVMCall()
+                    
+                    let gasUsed := _calcEVMGas(sub(zkevmGasBefore, gas()))
+
+                    _gasLeft := 0
+                    if gt(_calleeGas, gasUsed) {
+                        _gasLeft := sub(_calleeGas, gasUsed)
+                    }
+                }
+                
+            }
+
+            function _performStaticCall(
+                _calleeIsEVM,
+                _calleeGas,
+                _callee,
+                _inputOffset,
+                _inputLen,
+                _outputOffset,
+                _outputLen
+            ) ->  success, _gasLeft {
+                if _calleeIsEVM {
+                    _pushEVMFrame(_calleeGas, true)
+                    // TODO Check the following comment from zkSync .sol.
+                    // We can not just pass all gas here to prevert overflow of zkEVM gas counter
+                    success := staticcall(_calleeGas, _callee, _inputOffset, _inputLen, 0, 0)
+
+                    _gasLeft := _saveReturndataAfterEVMCall(_outputOffset, _outputLen)
+                    _popEVMFrame()
+                }
+
+                // zkEVM native
+                if not(_calleeIsEVM) {
+                    _calleeGas := _getZkEVMGas(_calleeGas)
+                    let zkevmGasBefore := gas()
+                    success := staticcall(_calleeGas, _callee, _inputOffset, _inputLen, _outputOffset, _outputLen)
+
+                    _saveReturndataAfterZkEVMCall()
+                    
+                    let gasUsed := _calcEVMGas(sub(zkevmGasBefore, gas()))
+
+                    _gasLeft := 0
+                    if gt(_calleeGas, gasUsed) {
+                        _gasLeft := sub(_calleeGas, gasUsed)
+                    }
+                }
             }
 
             function isAddrEmpty(addr) -> isEmpty {
@@ -2038,6 +2143,7 @@ object "EVMInterpreter" {
                     isEmpty := 1
                 }
             }
+
             ////////////////////////////////////////////////////////////////
             //                      FALLBACK
             ////////////////////////////////////////////////////////////////
@@ -2964,7 +3070,7 @@ object "EVMInterpreter" {
                 case 0xF1 { // OP_CALL
                     let dynamicGas
                     // A function was implemented in order to avoid stack depth errors.
-                    dynamicGas, sp := performCall(sp,evmGasLeft)
+                    dynamicGas, sp := performCall(sp, evmGasLeft, isStatic)
 
                     evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
                 }
