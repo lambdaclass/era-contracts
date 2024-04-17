@@ -414,7 +414,6 @@ object "EVMInterpreter" {
             originalValue := mload(32)
         }
 
-
         function warmAddress(addr) -> isWarm {
             // TODO: Unhardcode this selector 0x8db2ba78
             mstore8(0, 0x8d)
@@ -422,6 +421,7 @@ object "EVMInterpreter" {
             mstore8(2, 0xba)
             mstore8(3, 0x78)
             mstore(4, addr)
+
             let success := call(gas(), EVM_GAS_MANAGER_CONTRACT(), 0, 0, 36, 0, 32)
 
             if iszero(success) {
@@ -432,14 +432,92 @@ object "EVMInterpreter" {
             isWarm := mload(0)
         }
 
+        function getNewAddress(addr) -> newAddr {
+            let digest, nonce, addressEncoded, nonceEncoded, nonceEncodedLength, listLength, listLengthEconded
+
+            nonce := getNonce(addr)
+
+            addressEncoded := and(
+                add(addr, shl(160, 0x94)),
+                0xffffffffffffffffffffffffffffffffffffffffffff
+            )
+
+            nonceEncoded := nonce
+            nonceEncodedLength := 1
+            if iszero(nonce) {
+                nonceEncoded := 128
+            }
+            // The nonce has 4 bytes
+            if gt(nonce, 0xFFFFFF) {
+                nonceEncoded := shl(32, 0x84)
+                nonceEncoded := add(nonceEncoded, nonce)
+                nonceEncodedLength := 5
+            }
+            // The nonce has 3 bytes
+            if and(gt(nonce, 0xFFFF), lt(nonce, 0x1000000)) {
+                nonceEncoded := shl(24, 0x83)
+                nonceEncoded := add(nonceEncoded, nonce)
+                nonceEncodedLength := 4
+            }
+            // The nonce has 2 bytes
+            if and(gt(nonce, 0xFF), lt(nonce, 0x10000)) {
+                nonceEncoded := shl(16, 0x82)
+                nonceEncoded := add(nonceEncoded, nonce)
+                nonceEncodedLength := 3
+            }
+            // The nonce has 1 byte and it's in [0x80, 0xFF]
+            if and(gt(nonce, 0x7F), lt(nonce, 0x100)) {
+                nonceEncoded := shl(8, 0x81)
+                nonceEncoded := add(nonceEncoded, nonce)
+                nonceEncodedLength := 2
+            }
+
+            listLength := add(21, nonceEncodedLength)
+            listLengthEconded := add(listLength, 0xC0)
+
+            let arrayLength := add(168, mul(8, nonceEncodedLength))
+
+            digest := add(
+                shl(arrayLength, listLengthEconded),
+                add(shl(nonceEncodedLength, addressEncoded), nonceEncoded)
+            )
+
+            mstore(0, shl(sub(248, arrayLength), digest))
+
+            newAddr := and(
+                keccak256(0, add(div(arrayLength, 8), 1)),
+                0xffffffffffffffffffffffffffffffffffffffff
+            )
+        }
+
         function getNonce(addr) -> nonce {
             mstore8(0, 0xfb)
             mstore8(1, 0x1a)
             mstore8(2, 0x9a)
             mstore8(3, 0x57)
             mstore(4, addr)
+
             let result := staticcall(gas(), NONCE_HOLDER_SYSTEM_CONTRACT(), 0, 36, 0, 32)
+
+            if iszero(result) {
+                revert(0, 0)
+            }
+
             nonce := mload(0)
+        }
+
+        function incrementNonce(addr) {
+            mstore8(0, 0x30)
+            mstore8(1, 0x63)
+            mstore8(2, 0x95)
+            mstore8(3, 0xc6)
+            mstore(4, addr)
+
+            let result := call(gas(), NONCE_HOLDER_SYSTEM_CONTRACT(), 0, 0, 36, 0, 0)
+
+            if iszero(result) {
+                revert(0, 0)
+            }
         }
 
         function _isEVM(_addr) -> isEVM {
@@ -505,6 +583,49 @@ object "EVMInterpreter" {
 
         function _calcEVMGas(_zkevmGas) -> calczkevmGas {
             calczkevmGas := div(_zkevmGas, GAS_DIVISOR())
+        }
+
+        function genericCreate(addr, offset, size, sp) -> result {
+            pop(warmAddress(addr))
+
+            let nonceNewAddr := getNonce(addr)
+            let bytecodeNewAddr := extcodesize(addr)
+            if or(gt(nonceNewAddr, 0), gt(bytecodeNewAddr, 0)) {
+                incrementNonce(address())
+                revert(0, 0)
+            }
+
+            offset := add(MEM_OFFSET_INNER(), offset)
+
+            sp := pushStackItem(sp, sub(offset, 0x80))
+            sp := pushStackItem(sp, sub(offset, 0x60))
+            sp := pushStackItem(sp, sub(offset, 0x40))
+            sp := pushStackItem(sp, sub(offset, 0x20))
+
+            // Selector
+            mstore(sub(offset, 0x80), 0x5b16a23c)
+            // Arg1: address
+            mstore(sub(offset, 0x60), addr)
+            // Arg2: init code
+            // Where the arg starts (third word)
+            mstore(sub(offset, 0x40), 0x40)
+            // Length of the init code
+            mstore(sub(offset, 0x20), size)
+
+            result := call(gas(), DEPLOYER_SYSTEM_CONTRACT(), 0, sub(offset, 0x64), add(size, 0x64), 0, 0)
+
+            incrementNonce(address())
+
+            let back
+
+            back, sp := popStackItem(sp)
+            mstore(sub(offset, 0x20), back)
+            back, sp := popStackItem(sp)
+            mstore(sub(offset, 0x40), back)
+            back, sp := popStackItem(sp)
+            mstore(sub(offset, 0x60), back)
+            back, sp := popStackItem(sp)
+            mstore(sub(offset, 0x80), back)
         }
 
         function getEVMGas() -> evmGas {
@@ -1543,91 +1664,82 @@ object "EVMInterpreter" {
                     evmGasLeft := swapStackItem(sp, evmGasLeft, 16)
                 }
                 case 0xF0 { // OP_CREATE
+                    if isStatic {
+                        revert(0, 0)
+                    }
+
                     let value, offset, size
 
                     value, sp := popStackItem(sp)
                     offset, sp := popStackItem(sp)
                     size, sp := popStackItem(sp)
 
-                    offset := add(MEM_OFFSET_INNER(), 0x40) // 0x40 is just to make sure there's enough space while testing
+                    checkMemOverflow(add(offset, size))
 
-                    let addr
-                    {
-                        let digest, nonce, addressEncoded, nonceEncoded, listLength, listLengthEconded
-
-                        //nonce := getNonce()
-                        printString("getNonce")
-                        printHex(nonce)
-
-                        addressEncoded := and(add(address(), shl(160, 0x94)), 0x3ffffffffffffffffffffffffffffffffffffffffff)
-
-                        // This block works if 0 <= nonce <= 127
-                        // TODO: Make it work on nonce >= 128
-                        nonceEncoded := 128
-                        if gt(nonce, 0) {
-                            nonceEncoded := nonce
-                        }
-                        listLength := 22
-                        listLengthEconded := add(listLength, 0xC0)
-
-                        // TODO: Replace 176 with 168 + bytesLength(listLengthEncoded)
-                        digest := add(shl(176, listLengthEconded), add(shl(8, addressEncoded), nonceEncoded))
-
-                        printString("address")
-                        printHex(address())
-                        printString("address encoded")
-                        printHex(addressEncoded)
-                        printString("nonceEncoded")
-                        printHex(nonceEncoded)
-                        printString("listLength")
-                        printHex(listLength)
-                        printString("listLengthEncoded")
-                        printHex(listLengthEconded)
-                        printString("digest")
-                        printHex(digest)
-
-                        // TODO: Replace 72 with 256 - bitsLength(digest)
-                        mstore(offset, shl(72, digest))
-
-                        printString("Mem")
-                        printHex(mload(offset))
-
-                        // TODO: Replace 23 with bytesLength(digest)
-                        addr := and(keccak256(offset, 23), 0x1ffffffffffffffffffffffffffffffffffffffff)
-                        printString("keccak256")
-                        printHex(keccak256(offset, 23))
-                        printString("addr")
-                        printHex(addr)
+                    if gt(size, mul(2, MAX_POSSIBLE_BYTECODE())) {
+                        revert(0, 0)
                     }
 
-                    // Selector
-                    mstore8(offset, 0x5b)
-                    mstore8(add(offset, 1), 0x16)
-                    mstore8(add(offset, 2), 0xa2)
-                    mstore8(add(offset, 3), 0x3c)
-                    // Address (arg1)
-                    // mstore(add(offset, 4), shl(96, addr))
-                    mstore(add(offset, 4), addr)
-                    // Init code (len = 1): 0x00
-                    // Init code (arg2)
-                    // Where the arg starts (third word)
-                    mstore(add(offset, 36), 64)
-                    // Length of the init code
-                    mstore(add(offset, 68), 88)
-                    // init code itself
-                    mstore(add(offset, 100), 0x6080604052348015600e575f80fd5b50603e80601a5f395ff3fe60806040525f)
-                    mstore(add(offset, 132), 0x80fdfea264697066735822122070e77c564e632657f44e4b3cb2d5d4f74255fc)
-                    mstore(add(offset, 164), 0x64ca5fae813eb74275609e61e364736f6c634300081900330000000000000000)
+                    if gt(value, balance(address())) {
+                        revert(0, 0)
+                    }
 
-                    printString("Memory")
-                    printHex(mload(offset))
-                    printHex(mload(add(offset, 32)))
-                    printHex(mload(add(offset, 64)))
-                    printHex(mload(add(offset, 96)))
+                    evmGasLeft := chargeGas(evmGasLeft, add(
+                        32000, add(
+                        expandMemory(add(offset, size)),
+                        mul(2, div(add(size, 31), 32))
+                        )
+                    ))
 
-                    let result := call(gas(), DEPLOYER_SYSTEM_CONTRACT(), 0, offset, 188, 0, 0)
+                    let addr := getNewAddress(address())
 
-                    sp := pushStackItem(sp, addr)
+                    let result := genericCreate(addr, offset, size, sp)
+
+                    switch result
+                        case 0 { sp := pushStackItem(sp, 0) }
+                        default { sp := pushStackItem(sp, addr) }
+                }
+                case 0xF5 { // OP_CREATE2
+                    let value, offset, size, salt
+
+                    value, sp := popStackItem(sp)
+                    offset, sp := popStackItem(sp)
+                    size, sp := popStackItem(sp)
+                    salt, sp := popStackItem(sp)
+
+                    checkMemOverflow(add(offset, size))
+
+                    if gt(size, mul(2, MAX_POSSIBLE_BYTECODE())) {
+                        revert(0, 0)
+                    }
+
+                    if gt(value, balance(address())) {
+                        revert(0, 0)
+                    }
+
+                    evmGasLeft := chargeGas(evmGasLeft, add(
+                        32000, add(
+                        expandMemory(add(offset, size)),
+                        mul(2, div(add(size, 31), 32))
+                        )
+                    ))
+
+                    let hashedBytecode := keccak256(add(MEM_OFFSET_INNER(), offset), size)
+                    mstore8(0, 0xFF)
+                    mstore(0x01, shl(0x60, address()))
+                    mstore(0x15, salt)
+                    mstore(0x35, hashedBytecode)
+
+                    let addr := and(
+                        keccak256(0, 0x55),
+                        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                    )
+
+                    let result := genericCreate(addr, offset, size, sp)
+
+                    switch result
+                        case 0 { sp := pushStackItem(sp, 0) }
+                        default { sp := pushStackItem(sp, addr) }
                 }
                 case 0xF1 { // OP_CALL
                     let dynamicGas
@@ -2037,24 +2149,103 @@ object "EVMInterpreter" {
                 mstore8(2, 0xba)
                 mstore8(3, 0x78)
                 mstore(4, addr)
+
                 let success := call(gas(), EVM_GAS_MANAGER_CONTRACT(), 0, 0, 36, 0, 32)
-    
+
                 if iszero(success) {
                     // This error should never happen
                     revert(0, 0)
                 }
-    
+
                 isWarm := mload(0)
             }
-    
+
+            function getNewAddress(addr) -> newAddr {
+                let digest, nonce, addressEncoded, nonceEncoded, nonceEncodedLength, listLength, listLengthEconded
+
+                nonce := getNonce(addr)
+
+                addressEncoded := and(
+                    add(addr, shl(160, 0x94)),
+                    0xffffffffffffffffffffffffffffffffffffffffffff
+                )
+
+                nonceEncoded := nonce
+                nonceEncodedLength := 1
+                if iszero(nonce) {
+                    nonceEncoded := 128
+                }
+                // The nonce has 4 bytes
+                if gt(nonce, 0xFFFFFF) {
+                    nonceEncoded := shl(32, 0x84)
+                    nonceEncoded := add(nonceEncoded, nonce)
+                    nonceEncodedLength := 5
+                }
+                // The nonce has 3 bytes
+                if and(gt(nonce, 0xFFFF), lt(nonce, 0x1000000)) {
+                    nonceEncoded := shl(24, 0x83)
+                    nonceEncoded := add(nonceEncoded, nonce)
+                    nonceEncodedLength := 4
+                }
+                // The nonce has 2 bytes
+                if and(gt(nonce, 0xFF), lt(nonce, 0x10000)) {
+                    nonceEncoded := shl(16, 0x82)
+                    nonceEncoded := add(nonceEncoded, nonce)
+                    nonceEncodedLength := 3
+                }
+                // The nonce has 1 byte and it's in [0x80, 0xFF]
+                if and(gt(nonce, 0x7F), lt(nonce, 0x100)) {
+                    nonceEncoded := shl(8, 0x81)
+                    nonceEncoded := add(nonceEncoded, nonce)
+                    nonceEncodedLength := 2
+                }
+
+                listLength := add(21, nonceEncodedLength)
+                listLengthEconded := add(listLength, 0xC0)
+
+                let arrayLength := add(168, mul(8, nonceEncodedLength))
+
+                digest := add(
+                    shl(arrayLength, listLengthEconded),
+                    add(shl(nonceEncodedLength, addressEncoded), nonceEncoded)
+                )
+
+                mstore(0, shl(sub(248, arrayLength), digest))
+
+                newAddr := and(
+                    keccak256(0, add(div(arrayLength, 8), 1)),
+                    0xffffffffffffffffffffffffffffffffffffffff
+                )
+            }
+
             function getNonce(addr) -> nonce {
                 mstore8(0, 0xfb)
                 mstore8(1, 0x1a)
                 mstore8(2, 0x9a)
                 mstore8(3, 0x57)
                 mstore(4, addr)
+
                 let result := staticcall(gas(), NONCE_HOLDER_SYSTEM_CONTRACT(), 0, 36, 0, 32)
+
+                if iszero(result) {
+                    revert(0, 0)
+                }
+
                 nonce := mload(0)
+            }
+
+            function incrementNonce(addr) {
+                mstore8(0, 0x30)
+                mstore8(1, 0x63)
+                mstore8(2, 0x95)
+                mstore8(3, 0xc6)
+                mstore(4, addr)
+
+                let result := call(gas(), NONCE_HOLDER_SYSTEM_CONTRACT(), 0, 0, 36, 0, 0)
+
+                if iszero(result) {
+                    revert(0, 0)
+                }
             }
 
             function _isEVM(_addr) -> isEVM {
@@ -2309,6 +2500,49 @@ object "EVMInterpreter" {
                     ) {
                     isEmpty := 1
                 }
+            }
+
+            function genericCreate(addr, offset, size, sp) -> result {
+                pop(warmAddress(addr))
+
+                let nonceNewAddr := getNonce(addr)
+                let bytecodeNewAddr := extcodesize(addr)
+                if or(gt(nonceNewAddr, 0), gt(bytecodeNewAddr, 0)) {
+                    incrementNonce(address())
+                    revert(0, 0)
+                }
+
+                offset := add(MEM_OFFSET_INNER(), offset)
+
+                sp := pushStackItem(sp, sub(offset, 0x80))
+                sp := pushStackItem(sp, sub(offset, 0x60))
+                sp := pushStackItem(sp, sub(offset, 0x40))
+                sp := pushStackItem(sp, sub(offset, 0x20))
+
+                // Selector
+                mstore(sub(offset, 0x80), 0x5b16a23c)
+                // Arg1: address
+                mstore(sub(offset, 0x60), addr)
+                // Arg2: init code
+                // Where the arg starts (third word)
+                mstore(sub(offset, 0x40), 0x40)
+                // Length of the init code
+                mstore(sub(offset, 0x20), size)
+
+                result := call(gas(), DEPLOYER_SYSTEM_CONTRACT(), 0, sub(offset, 0x64), add(size, 0x64), 0, 0)
+
+                incrementNonce(address())
+
+                let back
+
+                back, sp := popStackItem(sp)
+                mstore(sub(offset, 0x20), back)
+                back, sp := popStackItem(sp)
+                mstore(sub(offset, 0x40), back)
+                back, sp := popStackItem(sp)
+                mstore(sub(offset, 0x60), back)
+                back, sp := popStackItem(sp)
+                mstore(sub(offset, 0x80), back)
             }
 
             ////////////////////////////////////////////////////////////////
@@ -3159,80 +3393,82 @@ object "EVMInterpreter" {
                     evmGasLeft := swapStackItem(sp, evmGasLeft, 16)
                 }
                 case 0xF0 { // OP_CREATE
+                    if isStatic {
+                        revert(0, 0)
+                    }
+
                     let value, offset, size
 
                     value, sp := popStackItem(sp)
                     offset, sp := popStackItem(sp)
                     size, sp := popStackItem(sp)
 
-                    let addr
-                    {
-                        let digest, nonce, addressEncoded, nonceEncoded, listLength, listLengthEconded
+                    checkMemOverflow(add(offset, size))
 
-                        //nonce := getNonce()
-
-                        addressEncoded := and(
-                            add(address(), shl(160, 0x94)),
-                            0x3ffffffffffffffffffffffffffffffffffffffffff
-                        )
-
-                        // This block works if 0 <= nonce <= 127
-                        // TODO: Make it work on nonce >= 128
-                        nonceEncoded := 128
-                        if gt(nonce, 0) {
-                            nonceEncoded := nonce
-                        }
-                        listLength := 22
-                        listLengthEconded := add(listLength, 0xC0)
-
-                        // TODO: Replace 176 with 168 + bytesLength(listLengthEncoded)
-                        digest := add(shl(176, listLengthEconded), add(shl(8, addressEncoded), nonceEncoded))
-
-                        // TODO: Replace 72 with 256 - bitsLength(digest)
-                        mstore(0, shl(72, digest))
-
-                        // TODO: Replace 23 with bytesLength(digest) (and mask)
-                        addr := and(
-                            keccak256(0, 23),
-                            0x1ffffffffffffffffffffffffffffffffffffffff
-                        )
-                    }
-
-                    offset := add(MEM_OFFSET_INNER(), offset)
-
-                    sp := pushStackItem(sp, sub(offset, 0x80))
-                    sp := pushStackItem(sp, sub(offset, 0x60))
-                    sp := pushStackItem(sp, sub(offset, 0x40))
-                    sp := pushStackItem(sp, sub(offset, 0x20))
-
-                    // Selector
-                    mstore(sub(offset, 0x80), 0x5b16a23c)
-                    // Arg1: address
-                    mstore(sub(offset, 0x60), addr)
-                    // Arg2: init code
-                    // Where the arg starts (third word)
-                    mstore(sub(offset, 0x40), 0x40)
-                    // Length of the init code
-                    mstore(sub(offset, 0x20), size)
-
-                    let result := call(gas(), DEPLOYER_SYSTEM_CONTRACT(), 0, sub(offset, 0x64), add(size, 0x64), 0, 0)
-
-                    if iszero(result) {
+                    if gt(size, mul(2, MAX_POSSIBLE_BYTECODE())) {
                         revert(0, 0)
                     }
 
-                    let back
+                    if gt(value, balance(address())) {
+                        revert(0, 0)
+                    }
 
-                    back, sp := popStackItem(sp)
-                    mstore(sub(offset, 0x20), back)
-                    back, sp := popStackItem(sp)
-                    mstore(sub(offset, 0x40), back)
-                    back, sp := popStackItem(sp)
-                    mstore(sub(offset, 0x60), back)
-                    back, sp := popStackItem(sp)
-                    mstore(sub(offset, 0x80), back)
+                    evmGasLeft := chargeGas(evmGasLeft, add(
+                        32000, add(
+                        expandMemory(add(offset, size)),
+                        mul(2, div(add(size, 31), 32))
+                        )
+                    ))
 
-                    sp := pushStackItem(sp, addr)
+                    let addr := getNewAddress(address())
+
+                    let result := genericCreate(addr, offset, size, sp)
+
+                    switch result
+                        case 0 { sp := pushStackItem(sp, 0) }
+                        default { sp := pushStackItem(sp, addr) }
+                }
+                case 0xF5 { // OP_CREATE2
+                    let value, offset, size, salt
+
+                    value, sp := popStackItem(sp)
+                    offset, sp := popStackItem(sp)
+                    size, sp := popStackItem(sp)
+                    salt, sp := popStackItem(sp)
+
+                    checkMemOverflow(add(offset, size))
+
+                    if gt(size, mul(2, MAX_POSSIBLE_BYTECODE())) {
+                        revert(0, 0)
+                    }
+
+                    if gt(value, balance(address())) {
+                        revert(0, 0)
+                    }
+
+                    evmGasLeft := chargeGas(evmGasLeft, add(
+                        32000, add(
+                        expandMemory(add(offset, size)),
+                        mul(2, div(add(size, 31), 32))
+                        )
+                    ))
+
+                    let hashedBytecode := keccak256(add(MEM_OFFSET_INNER(), offset), size)
+                    mstore8(0, 0xFF)
+                    mstore(0x01, shl(0x60, address()))
+                    mstore(0x15, salt)
+                    mstore(0x35, hashedBytecode)
+
+                    let addr := and(
+                        keccak256(0, 0x55),
+                        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                    )
+
+                    let result := genericCreate(addr, offset, size, sp)
+
+                    switch result
+                        case 0 { sp := pushStackItem(sp, 0) }
+                        default { sp := pushStackItem(sp, addr) }
                 }
                 case 0xF1 { // OP_CALL
                     let dynamicGas
