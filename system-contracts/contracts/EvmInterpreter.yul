@@ -2068,63 +2068,6 @@ object "EVMInterpreter" {
                 evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
             }
 
-            // This function is called inside performCall()
-            // TODO: optimize after it works
-            function _performCall(
-                _calleeIsEVM,
-                _isStatic,
-                _calleeGas,
-                _callee,
-                _value,
-                _inputOffset,
-                _inputLen,
-                _outputOffset,
-                _outputLen
-            ) -> success, _gasLeft {
-                // From evm_codes, reverts if:
-                // The current execution context is from a STATICCALL 
-                // and the value (stack index 2) is not 0 (since Byzantium fork).
-                if _isStatic {
-                    if not(iszero(_value)) {
-                        revert(0, 0)
-                    }
-                    success, _gasLeft := _performStaticCall(
-                        _calleeIsEVM,
-                        _calleeGas,
-                        _callee,
-                        _inputOffset,
-                        _inputLen,
-                        _outputOffset,
-                        _outputLen
-                    )
-                }
-
-                if _calleeIsEVM {
-                    _pushEVMFrame(_calleeGas, _isStatic)
-                    success := call(_calleeGas, _callee, _value, _inputOffset, _inputLen, 0, 0)
-
-                    _gasLeft := _saveReturndataAfterEVMCall(_outputOffset, _outputLen)
-                    _popEVMFrame()
-                }
-
-                // zkEVM native
-                if and(not(_calleeIsEVM), not(_isStatic)) {
-                    _calleeGas := _getZkEVMGas(_calleeGas)
-                    let zkevmGasBefore := gas()
-                    success := call(_calleeGas, _callee, _value, _inputOffset, _inputLen, _outputOffset, _outputLen)
-
-                    _saveReturndataAfterZkEVMCall()
-                    
-                    let gasUsed := _calcEVMGas(sub(zkevmGasBefore, gas()))
-
-                    _gasLeft := 0
-                    if gt(_calleeGas, gasUsed) {
-                        _gasLeft := sub(_calleeGas, gasUsed)
-                    }
-                }
-                
-            }
-
             function _performStaticCall(
                 _calleeIsEVM,
                 _calleeGas,
