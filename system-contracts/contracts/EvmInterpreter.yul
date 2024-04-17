@@ -1483,6 +1483,32 @@ object "EVMInterpreter" {
     }
     object "EVMInterpreter_deployed" {
         code {
+
+            function loadCalldataIntoActivePtr() {
+                verbatim_1i_0o("active_ptr_data_load", 0xFFFF)
+            }
+    
+            // TODO: Check if the verbatim is ok
+            function loadReturndataIntoActivePtr() {
+                verbatim_0i_0o("return_data_ptr_to_active")
+            }
+    
+            function getActivePtrDataSize() -> size {
+                size := verbatim_0i_1o("active_ptr_data_size")
+            }
+    
+            function copyActivePtrData(_dest, _source, _size) {
+                verbatim_3i_0o("active_ptr_data_copy", _dest, _source, _size)
+            }
+
+            function ptrAddIntoActive(_dest) {
+                verbatim_1i_0o("active_ptr_add_assign", _dest)
+            }
+    
+            function ptrShrinkIntoActive(_dest) {
+                verbatim_1i_0o("active_ptr_shrink_assign", _dest)
+            }
+
             function SYSTEM_CONTRACTS_OFFSET() -> offset {
                 offset := 0x8000
             }
@@ -1915,6 +1941,39 @@ object "EVMInterpreter" {
                     TODO: refine the formula, especially with regard to decommitment costs
                 */
                 zkevmGas := mul(_evmGas, GAS_DIVISOR())
+            }
+
+            function _saveReturndataAfterEVMCall(_outputOffset, _outputLen) -> _gasLeft{
+                //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
+                let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shr(5, 5))// 5 << 5 == 5 * 32
+                let rtsz := returndatasize()
+
+                loadReturndataIntoActivePtr()
+
+                // if (rtsz > 31)
+                switch gt(31, rtsz)
+                    case true {
+                        returndatacopy(0, 0, 32)
+                        _gasLeft := mload(0)
+                        returndatacopy(_outputOffset, 32, _outputLen)
+                        mstore(lastRtSzOffset, sub(rtsz, 32))
+
+                        // Skip the returnData
+                        ptrAddIntoActive(32)
+                    }
+                    case false {
+                        _gasLeft := 0
+                        _eraseReturndataPointer()
+                    }
+            }
+
+            function _eraseReturndataPointer() {
+                //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
+                let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shl(5, 5))// 5 << 5 == 5 * 32
+
+                let activePtrSize := getActivePtrDataSize()
+                ptrShrinkIntoActive(and(activePtrSize, 0xFFFFFFFF))// uint32(activePtrSize)
+                mstore(lastRtSzOffset, 0)
             }
 
             function performCall(oldSp,evmGasLeft) -> dynamicGas,sp {
