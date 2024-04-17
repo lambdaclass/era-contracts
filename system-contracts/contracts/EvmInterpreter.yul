@@ -2020,17 +2020,45 @@ object "EVMInterpreter" {
                 // TODO: More Checks are needed
                 // Check gas
                 let success
-                success, evmGasLeft := _performCall(
-                                        _isEVM(addr),
-                                        isStatic,
-                                        gasSend,
-                                        addr,
-                                        value,
-                                        argsOffset,
-                                        argsSize,
-                                        retOffset,
-                                        retSize
-                                    )
+
+                if isStatic {
+                    if not(iszero(value)) {
+                        revert(0, 0)
+                    }
+                    success, evmGasLeft := _performStaticCall(
+                        _isEVM(addr),
+                        gasSend,
+                        addr,
+                        argsOffset,
+                        argsSize,
+                        retOffset,
+                        retSize
+                    )
+                }
+
+                if _isEVM(addr) {
+                    _pushEVMFrame(gasSend, isStatic)
+                    success := call(gasSend, addr, value, argsOffset, argsSize, 0, 0)
+
+                    evmGasLeft := _saveReturndataAfterEVMCall(retOffset, retSize)
+                    _popEVMFrame()
+                }
+
+                // zkEVM native
+                if and(not(_isEVM(addr)), not(isStatic)) {
+                    gasSend := _getZkEVMGas(gasSend)
+                    let zkevmGasBefore := gas()
+                    success := call(gasSend, addr, value, argsOffset, argsSize, retOffset, retSize)
+
+                    _saveReturndataAfterZkEVMCall()
+
+                    let gasUsed := _calcEVMGas(sub(zkevmGasBefore, gas()))
+
+                    evmGasLeft := 0
+                    if gt(gasSend, gasUsed) {
+                        evmGasLeft := sub(gasSend, gasUsed)
+                    }
+                }
     
                 sp := pushStackItem(sp,success)
     
