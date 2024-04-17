@@ -1891,6 +1891,32 @@ object "EVMInterpreter" {
                 }
             }
 
+                // Each evm gas is 5 zkEVM one
+                // FIXME: change this variable to reflect real ergs : gas ratio
+                function GAS_DIVISOR() -> gas_div { gas_div := 5 }
+                function EVM_GAS_STIPEND() -> gas_stipend { gas_stipend := shl(30, 1) } // 1 << 30
+                function OVERHEAD() -> overhead { overhead := 2000 }
+
+                function _calcEVMGas(_zkevmGas) -> calczkevmGas {
+                    calczkevmGas := div(_zkevmGas, GAS_DIVISOR())
+                }
+
+                function _getEVMGas() -> evmGas {
+                    let _gas := gas()
+                    let requiredGas := add(EVM_GAS_STIPEND(), OVERHEAD())
+
+                    if or(gt(requiredGas, _gas), eq(requiredGas, _gas)) {
+                        evmGas := div(sub(_gas, requiredGas), GAS_DIVISOR())
+                    }
+                }
+
+                function _getZkEVMGas(_evmGas) -> zkevmGas {
+                    /*
+                        TODO: refine the formula, especially with regard to decommitment costs
+                    */
+                    zkevmGas := mul(_evmGas, GAS_DIVISOR())
+                }
+
             function performCall(oldSp,evmGasLeft) -> dynamicGas,sp {
                 let gasSend,addr,value,argsOffset,argsSize,retOffset,retSize
                             
