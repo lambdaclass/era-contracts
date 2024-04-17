@@ -1488,7 +1488,6 @@ object "EVMInterpreter" {
                 verbatim_1i_0o("active_ptr_data_load", 0xFFFF)
             }
     
-            // TODO: Check if the verbatim is ok
             function loadReturndataIntoActivePtr() {
                 verbatim_0i_0o("return_data_ptr_to_active")
             }
@@ -1974,6 +1973,13 @@ object "EVMInterpreter" {
                 let activePtrSize := getActivePtrDataSize()
                 ptrShrinkIntoActive(and(activePtrSize, 0xFFFFFFFF))// uint32(activePtrSize)
                 mstore(lastRtSzOffset, 0)
+            }
+
+            function _saveReturndataAfterZkEVMCall() {
+                //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
+                let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shl(5, 5))// 5 << 5 == 5 * 32
+
+                mstore(lastRtSzOffset, returndatasize())
             }
 
             function performCall(oldSp,evmGasLeft) -> dynamicGas,sp {
