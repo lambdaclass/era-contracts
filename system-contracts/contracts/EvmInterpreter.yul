@@ -1835,6 +1835,29 @@ object "EVMInterpreter" {
                 let result := staticcall(gas(), NONCE_HOLDER_SYSTEM_CONTRACT(), 0, 36, 0, 32)
                 nonce := mload(0)
             }
+
+            function _isEVM(_addr) -> isEVM {
+                // bytes4 selector = ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT.isAccountEVM.selector;
+                // function isAccountEVM(address _addr) external view returns (bool);
+                let selector := 0x8c040477
+                // IAccountCodeStorage constant ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT = IAccountCodeStorage(
+                //      address(SYSTEM_CONTRACTS_OFFSET + 0x02)
+                // );
+                // SYSTEM_COTNRACTS_OFFSET == 0x8000 // 2^15 -> defined by zkSync
+                let addr := add(0x8000, 0x02)
+
+                mstore(0, selector)
+                mstore(4, _addr)
+                let success := staticcall(gas(), addr, 0, 36, 0, 32)
+
+                if iszero(success) {
+                    // This error should never happen
+                    revert(0, 0)
+                }
+
+                isEVM := mload(0)
+            }
+
             function performCall(oldSp,evmGasLeft) -> dynamicGas,sp {
                 let gasSend,addr,value,argsOffset,argsSize,retOffset,retSize
                             
@@ -1880,7 +1903,7 @@ object "EVMInterpreter" {
                 dynamicGas := add(dynamicGas,gasSend)
                 evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
             }
-            
+
             function isAddrEmpty(addr) -> isEmpty {
                 isEmpty := 0
                 if  and( and( 
