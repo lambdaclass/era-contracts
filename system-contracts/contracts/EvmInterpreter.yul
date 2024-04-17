@@ -1858,6 +1858,39 @@ object "EVMInterpreter" {
                 isEVM := mload(0)
             }
 
+            function _pushEVMFrame(_passGas, _isStatic) {
+                // function pushEVMFrame(uint256 _passGas, bool _isStatic) external
+                let selector := 0xead77156
+                // EvmGasManager constant EVM_GAS_MANAGER = EvmGasManager(address(SYSTEM_CONTRACTS_OFFSET + 0x13));
+                let addr := add(0x8000, 0x13)
+
+                mstore(0, selector)
+                mstore(4, _passGas)
+                mstore(36, _isStatic)
+
+                let success := call(gas(), addr, 0, 0, 68, 0, 0)
+                if iszero(success) {
+                    // This error should never happen
+                    revert(0, 0)
+                }
+            }
+
+            function _popEVMFrame() {
+                // function popEVMFrame() external
+                // 0xe467d2f0
+                let selector := 0xe467d2f0
+                // EvmGasManager constant EVM_GAS_MANAGER = EvmGasManager(address(SYSTEM_CONTRACTS_OFFSET + 0x13));
+                let addr := add(0x8000, 0x13)
+
+                mstore(0, selector)
+
+                let success := call(gas(), addr, 0, 0, 4, 0, 0)
+                if iszero(success) {
+                    // This error should never happen
+                    revert(0, 0)
+                }
+            }
+
             function performCall(oldSp,evmGasLeft) -> dynamicGas,sp {
                 let gasSend,addr,value,argsOffset,argsSize,retOffset,retSize
                             
