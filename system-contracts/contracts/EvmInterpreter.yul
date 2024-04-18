@@ -546,14 +546,15 @@ object "EVMInterpreter" {
         function _pushEVMFrame(_passGas, _isStatic) {
             // function pushEVMFrame(uint256 _passGas, bool _isStatic) external
             let selector := 0xead77156
-            // EvmGasManager constant EVM_GAS_MANAGER = EvmGasManager(address(SYSTEM_CONTRACTS_OFFSET + 0x13));
-            let addr := add(0x8000, 0x13)
 
-            mstore(0, selector)
+            mstore8(0, 0xea)
+            mstore8(1, 0xd7)
+            mstore8(2, 0x71)
+            mstore8(3, 0x56)
             mstore(4, _passGas)
             mstore(36, _isStatic)
 
-            let success := call(gas(), addr, 0, 0, 68, 0, 0)
+            let success := call(gas(), EVM_GAS_MANAGER_CONTRACT(), 0, 0, 68, 0, 0)
             if iszero(success) {
                 // This error should never happen
                 revert(0, 0)
@@ -564,12 +565,13 @@ object "EVMInterpreter" {
             // function popEVMFrame() external
             // 0xe467d2f0
             let selector := 0xe467d2f0
-            // EvmGasManager constant EVM_GAS_MANAGER = EvmGasManager(address(SYSTEM_CONTRACTS_OFFSET + 0x13));
-            let addr := add(0x8000, 0x13)
 
-            mstore(0, selector)
+            mstore8(0, 0xe4)
+            mstore8(1, 0x67)
+            mstore8(2, 0xd2)
+            mstore8(3, 0xf0)
 
-            let success := call(gas(), addr, 0, 0, 4, 0, 0)
+            let success := call(gas(), EVM_GAS_MANAGER_CONTRACT(), 0, 0, 4, 0, 0)
             if iszero(success) {
                 // This error should never happen
                 revert(0, 0)
@@ -646,15 +648,18 @@ object "EVMInterpreter" {
         }
 
         function _saveReturndataAfterEVMCall(_outputOffset, _outputLen) -> _gasLeft{
-            //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
-            let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shr(5, 5))// 5 << 5 == 5 * 32
+            let lastRtSzOffset := LAST_RETURNDATA_SIZE_OFFSET()
             let rtsz := returndatasize()
 
             loadReturndataIntoActivePtr()
 
             // if (rtsz > 31)
-            switch gt(31, rtsz)
-                case true {
+            switch gt(rtsz, 31)
+                case 0 {
+                    _gasLeft := 0
+                    _eraseReturndataPointer()
+                }
+                default {
                     returndatacopy(0, 0, 32)
                     _gasLeft := mload(0)
                     returndatacopy(_outputOffset, 32, _outputLen)
@@ -663,15 +668,10 @@ object "EVMInterpreter" {
                     // Skip the returnData
                     ptrAddIntoActive(32)
                 }
-                case false {
-                    _gasLeft := 0
-                    _eraseReturndataPointer()
-                }
         }
 
         function _eraseReturndataPointer() {
-            //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
-            let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shl(5, 5))// 5 << 5 == 5 * 32
+            let lastRtSzOffset := LAST_RETURNDATA_SIZE_OFFSET()
 
             let activePtrSize := getActivePtrDataSize()
             ptrShrinkIntoActive(and(activePtrSize, 0xFFFFFFFF))// uint32(activePtrSize)
@@ -679,8 +679,7 @@ object "EVMInterpreter" {
         }
 
         function _saveReturndataAfterZkEVMCall() {
-            //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
-            let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shl(5, 5))// 5 << 5 == 5 * 32
+            let lastRtSzOffset := LAST_RETURNDATA_SIZE_OFFSET()
 
             mstore(lastRtSzOffset, returndatasize())
         }
@@ -2275,14 +2274,15 @@ object "EVMInterpreter" {
             function _pushEVMFrame(_passGas, _isStatic) {
                 // function pushEVMFrame(uint256 _passGas, bool _isStatic) external
                 let selector := 0xead77156
-                // EvmGasManager constant EVM_GAS_MANAGER = EvmGasManager(address(SYSTEM_CONTRACTS_OFFSET + 0x13));
-                let addr := add(0x8000, 0x13)
 
-                mstore(0, selector)
+                mstore8(0, 0xea)
+                mstore8(1, 0xd7)
+                mstore8(2, 0x71)
+                mstore8(3, 0x56)
                 mstore(4, _passGas)
                 mstore(36, _isStatic)
 
-                let success := call(gas(), addr, 0, 0, 68, 0, 0)
+                let success := call(gas(), EVM_GAS_MANAGER_CONTRACT(), 0, 0, 68, 0, 0)
                 if iszero(success) {
                     // This error should never happen
                     revert(0, 0)
@@ -2293,12 +2293,13 @@ object "EVMInterpreter" {
                 // function popEVMFrame() external
                 // 0xe467d2f0
                 let selector := 0xe467d2f0
-                // EvmGasManager constant EVM_GAS_MANAGER = EvmGasManager(address(SYSTEM_CONTRACTS_OFFSET + 0x13));
-                let addr := add(0x8000, 0x13)
 
-                mstore(0, selector)
+                mstore8(0, 0xe4)
+                mstore8(1, 0x67)
+                mstore8(2, 0xd2)
+                mstore8(3, 0xf0)
 
-                let success := call(gas(), addr, 0, 0, 4, 0, 0)
+                let success := call(gas(), EVM_GAS_MANAGER_CONTRACT(), 0, 0, 4, 0, 0)
                 if iszero(success) {
                     // This error should never happen
                     revert(0, 0)
@@ -2332,15 +2333,22 @@ object "EVMInterpreter" {
             }
 
             function _saveReturndataAfterEVMCall(_outputOffset, _outputLen) -> _gasLeft{
-                //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
-                let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shr(5, 5))// 5 << 5 == 5 * 32
+                let lastRtSzOffset := LAST_RETURNDATA_SIZE_OFFSET()
                 let rtsz := returndatasize()
 
                 loadReturndataIntoActivePtr()
 
                 // if (rtsz > 31)
-                switch gt(31, rtsz)
-                    case true {
+                printHex(returndatasize())
+                switch gt(rtsz, 31)
+                    case 0 {
+                        // Unexpected return data.
+                        printString("Unexpected return data")
+                        _gasLeft := 0
+                        _eraseReturndataPointer()
+                    }
+                    default {
+                        printString("SHOULD ENTER")
                         returndatacopy(0, 0, 32)
                         _gasLeft := mload(0)
                         returndatacopy(_outputOffset, 32, _outputLen)
@@ -2349,15 +2357,10 @@ object "EVMInterpreter" {
                         // Skip the returnData
                         ptrAddIntoActive(32)
                     }
-                    case false {
-                        _gasLeft := 0
-                        _eraseReturndataPointer()
-                    }
             }
 
             function _eraseReturndataPointer() {
-                //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
-                let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shl(5, 5))// 5 << 5 == 5 * 32
+                let lastRtSzOffset := LAST_RETURNDATA_SIZE_OFFSET()
 
                 let activePtrSize := getActivePtrDataSize()
                 ptrShrinkIntoActive(and(activePtrSize, 0xFFFFFFFF))// uint32(activePtrSize)
@@ -2365,8 +2368,7 @@ object "EVMInterpreter" {
             }
 
             function _saveReturndataAfterZkEVMCall() {
-                //uint256 constant LAST_RETURNDATA_SIZE_OFFSET = DEBUG_SLOT_OFFSET + 5 * 32;
-                let lastRtSzOffset := add(DEBUG_SLOT_OFFSET(), shl(5, 5))// 5 << 5 == 5 * 32
+                let lastRtSzOffset := LAST_RETURNDATA_SIZE_OFFSET()
 
                 mstore(lastRtSzOffset, returndatasize())
             }
@@ -2411,6 +2413,7 @@ object "EVMInterpreter" {
                 let success
                 
                 if isStatic {
+                    printString("Static")
                     if not(iszero(value)) {
                         revert(0, 0)
                     }
@@ -2426,15 +2429,18 @@ object "EVMInterpreter" {
                 }
 
                 if _isEVM(addr) {
+                    printString("isEVM")
                     _pushEVMFrame(gasSend, isStatic)
                     success := call(gasSend, addr, value, argsOffset, argsSize, 0, 0)
-
+                    printHex(success)
                     evmGasLeft := _saveReturndataAfterEVMCall(retOffset, retSize)
                     _popEVMFrame()
+                    printString("EVM Done")
                 }
 
                 // zkEVM native
-                if and(not(_isEVM(addr)), not(isStatic)) {
+                if and(iszero(_isEVM(addr)), iszero(isStatic)) {
+                    printString("is zkEVM")
                     gasSend := _getZkEVMGas(gasSend)
                     let zkevmGasBefore := gas()
                     success := call(gasSend, addr, value, argsOffset, argsSize, retOffset, retSize)
@@ -2445,6 +2451,7 @@ object "EVMInterpreter" {
                     if gt(gasSend, gasUsed) {
                         evmGasLeft := sub(gasSend, gasUsed)
                     }
+                    printString("zkEVM Done")
                 }
     
                 sp := pushStackItem(sp,success)
