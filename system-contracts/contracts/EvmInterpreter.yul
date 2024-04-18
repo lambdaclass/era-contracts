@@ -527,12 +527,13 @@ object "EVMInterpreter" {
             // IAccountCodeStorage constant ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT = IAccountCodeStorage(
             //      address(SYSTEM_CONTRACTS_OFFSET + 0x02)
             // );
-            // SYSTEM_COTNRACTS_OFFSET == 0x8000 // 2^15 -> defined by zkSync
-            let addr := add(0x8000, 0x02)
 
-            mstore(0, selector)
+            mstore8(0, 0x8c)
+            mstore8(1, 0x04)
+            mstore8(2, 0x04)
+            mstore8(3, 0x77)
             mstore(4, _addr)
-            let success := staticcall(gas(), addr, 0, 36, 0, 32)
+            let success := staticcall(gas(), ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT(), 0, 36, 0, 32)
 
             if iszero(success) {
                 // This error should never happen
@@ -767,7 +768,6 @@ object "EVMInterpreter" {
             // TODO: dynamicGas := add(dynamicGas,codeExecutionCost) how to do this?
             // Check if the following is ok
             dynamicGas := add(dynamicGas,gasSend)
-            evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
         }
 
         function _performStaticCall(
@@ -2255,12 +2255,14 @@ object "EVMInterpreter" {
                 // IAccountCodeStorage constant ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT = IAccountCodeStorage(
                 //      address(SYSTEM_CONTRACTS_OFFSET + 0x02)
                 // );
-                // SYSTEM_COTNRACTS_OFFSET == 0x8000 // 2^15 -> defined by zkSync
-                let addr := add(0x8000, 0x02)
 
-                mstore(0, selector)
+                mstore8(0, 0x8c)
+                mstore8(1, 0x04)
+                mstore8(2, 0x04)
+                mstore8(3, 0x77)
                 mstore(4, _addr)
-                let success := staticcall(gas(), addr, 0, 36, 0, 32)
+                
+                let success := staticcall(gas(), ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT(), 0, 36, 0, 32)
 
                 if iszero(success) {
                     // This error should never happen
@@ -2407,7 +2409,7 @@ object "EVMInterpreter" {
                 // TODO: More Checks are needed
                 // Check gas
                 let success
-
+                
                 if isStatic {
                     if not(iszero(value)) {
                         revert(0, 0)
@@ -2436,9 +2438,7 @@ object "EVMInterpreter" {
                     gasSend := _getZkEVMGas(gasSend)
                     let zkevmGasBefore := gas()
                     success := call(gasSend, addr, value, argsOffset, argsSize, retOffset, retSize)
-
                     _saveReturndataAfterZkEVMCall()
-
                     let gasUsed := _calcEVMGas(sub(zkevmGasBefore, gas()))
 
                     evmGasLeft := 0
@@ -2448,11 +2448,10 @@ object "EVMInterpreter" {
                 }
     
                 sp := pushStackItem(sp,success)
-    
+
                 // TODO: dynamicGas := add(dynamicGas,codeExecutionCost) how to do this?
                 // Check if the following is ok
                 dynamicGas := add(dynamicGas,gasSend)
-                evmGasLeft := chargeGas(evmGasLeft,dynamicGas)
             }
 
             function _performStaticCall(
