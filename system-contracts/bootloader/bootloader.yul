@@ -9,31 +9,6 @@ object "Bootloader" {
             //                      Function Declarations
             ////////////////////////////////////////////////////////////////////////////
 
-            // While we definitely cannot control the pubdata price on L1,
-            // we need to check the operator does not provide any absurd numbers there
-            function MAX_ALLOWED_FAIR_PUBDATA_PRICE() -> ret {
-                // 1M gwei
-                ret := 1000000000000000
-            }
-
-            function MAX_ALLOWED_FAIR_L2_GAS_PRICE() -> ret {
-                // 10k gwei
-                ret := 10000000000000
-            }
-
-            /// @dev This method ensures that the prices provided by the operator
-            /// are not absurdly high
-            function validateOperatorProvidedPrices(fairL2GasPrice, pubdataPrice) {
-                // The limit is the same for pubdata price and L1 gas price
-                if gt(pubdataPrice, MAX_ALLOWED_FAIR_PUBDATA_PRICE()) {
-                    assertionError("Fair pubdata price too high")
-                }
-
-                if gt(fairL2GasPrice, MAX_ALLOWED_FAIR_L2_GAS_PRICE()) {
-                    assertionError("L2 fair gas price too high")
-                }
-            }
-
             /// @dev The overhead for a transaction slot in L2 gas.
             /// It is roughly equal to 80kk/MAX_TRANSACTIONS_IN_BATCH, i.e. how many gas would an L1->L2 transaction
             /// need to pay to compensate for the batch being closed.
@@ -3995,10 +3970,6 @@ object "Bootloader" {
                 /// Just like the batch number, while calculated on the bootloader side,
                 /// the operator still provides it to make sure that its data is in sync.
                 let EXPECTED_BASE_FEE := mload(192)
-
-                validateOperatorProvidedPrices(FAIR_L2_GAS_PRICE, FAIR_PUBDATA_PRICE)
-
-
 
                 <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
 
