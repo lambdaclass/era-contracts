@@ -5,9 +5,67 @@ object "Bootloader" {
         code {
             {{CODE_START_PLACEHOLDER}}
 
+
+            function DEBUG_SLOT_OFFSET() -> offset {
+                offset := mul(32, 32)
+            }
+
+            // Essentially a NOP that will not get optimized away by the compiler
+            function $llvm_NoInline_llvm$_unoptimized() {
+                pop(1)
+            }
+
+            function printHex(value) {
+                mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebde)
+                mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
+                mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
+                $llvm_NoInline_llvm$_unoptimized()
+            }
+
+            function printString(value) {
+                mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdf)
+                mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
+                mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
+                $llvm_NoInline_llvm$_unoptimized()
+            }
+
             ////////////////////////////////////////////////////////////////////////////
             //                      Function Declarations
             ////////////////////////////////////////////////////////////////////////////
+
+            // While we definitely cannot control the pubdata price on L1,
+            // we need to check the operator does not provide any absurd numbers there
+            function MAX_ALLOWED_FAIR_PUBDATA_PRICE() -> ret {
+                // 1M gwei
+                ret := 100000000000000000000000000000000000000000000000000000000000000000000000000000000000
+            }
+
+            function MAX_ALLOWED_FAIR_L2_GAS_PRICE() -> ret {
+                // 10k gwei
+                ret := 10000000000000000000000000000000000000000000000000000000000000000000000
+            }
+
+            /// @dev This method ensures that the prices provided by the operator
+            /// are not absurdly high
+            function validateOperatorProvidedPrices(fairL2GasPrice, pubdataPrice) {
+                printString("fairL2GasPrice")
+                printHex(fairL2GasPrice)
+                printString("pubdataPrice")
+                printHex(pubdataPrice)
+                printString("MAX_ALLOWED_FAIR_L2_GAS_PRICE")
+                printHex(MAX_ALLOWED_FAIR_L2_GAS_PRICE())
+                printString("MAX_ALLOWED_FAIR_L2_GAS_PRICE()")
+                printHex(MAX_ALLOWED_FAIR_L2_GAS_PRICE())
+                
+                // The limit is the same for pubdata price and L1 gas price
+                if gt(pubdataPrice, MAX_ALLOWED_FAIR_PUBDATA_PRICE()) {
+                    assertionError("Fair pubdata price too high")
+                }
+
+                if gt(fairL2GasPrice, MAX_ALLOWED_FAIR_L2_GAS_PRICE()) {
+                    assertionError("L2 fair gas price too high")
+                }
+            }
 
             /// @dev The overhead for a transaction slot in L2 gas.
             /// It is roughly equal to 80kk/MAX_TRANSACTIONS_IN_BATCH, i.e. how many gas would an L1->L2 transaction
@@ -3971,6 +4029,7 @@ object "Bootloader" {
                 /// the operator still provides it to make sure that its data is in sync.
                 let EXPECTED_BASE_FEE := mload(192)
 
+                validateOperatorProvidedPrices(FAIR_L2_GAS_PRICE, FAIR_PUBDATA_PRICE)
                 <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
 
                 let baseFee := 0
