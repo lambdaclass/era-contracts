@@ -4075,6 +4075,13 @@ object "Bootloader" {
             mstore(PRIORITY_TXS_L1_DATA_BEGIN_BYTE(), EMPTY_STRING_KECCAK())
             mstore(add(PRIORITY_TXS_L1_DATA_BEGIN_BYTE(), 32), 0)
 
+            printString("pubdataPrice")
+            let FAIR_PUBDATA_PRICE := mload(128)
+            printHex(FAIR_PUBDATA_PRICE)
+            printString("l2Price")
+            let FAIR_L2_GAS_PRICE := mload(160)
+            printHex(FAIR_L2_GAS_PRICE)
+
             // Iterating through transaction descriptions
             let transactionIndex := 0
             for {
@@ -4117,13 +4124,6 @@ object "Bootloader" {
                 }
 
                 validateTypedTxStructure(add(txDataOffset, 32))
-
-                printString("pubdataPrice")
-                let FAIR_PUBDATA_PRICE := mload(128)
-                printHex(FAIR_PUBDATA_PRICE)
-                printString("l2Price")
-                let FAIR_L2_GAS_PRICE := mload(160)
-                printHex(FAIR_L2_GAS_PRICE)
 
                 <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
                 {
