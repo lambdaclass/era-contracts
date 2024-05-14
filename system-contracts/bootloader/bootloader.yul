@@ -9,21 +9,21 @@ object "Bootloader" {
             //                      Function Declarations
             ////////////////////////////////////////////////////////////////////////////
             function DEBUG_SLOT_OFFSET() -> offset {
-                offset := mul(32, 32)
+                offset := add(mul(64, 32), 0x02)
             }
 
             function printHex(value) {
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebde)
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
                 mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
-                $llvm_NoInline_llvm$_unoptimized(1)
+                $llvm_NoInline_llvm$_unoptimized2()
             }
 
             function printString(value) {
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdf)
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
                 mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
-                $llvm_NoInline_llvm$_unoptimized(1)
+                $llvm_NoInline_llvm$_unoptimized2()
             }
 
             // While we definitely cannot control the pubdata price on L1,
@@ -3940,6 +3940,10 @@ object "Bootloader" {
 
             // Need to prevent the compiler from optimizing out similar operations,
             // which may have different meaning for the offline debugging
+            function $llvm_NoInline_llvm$_unoptimized2() {
+                pop(1)
+            }
+            
             function $llvm_NoInline_llvm$_unoptimized(val) -> ret {
                 ret := add(val, callvalue())
             }
@@ -3979,6 +3983,14 @@ object "Bootloader" {
             ////////////////////////////////////////////////////////////////////////////
             //                      Main Transaction Processing
             ////////////////////////////////////////////////////////////////////////////
+
+
+            printString("pubdataPrice")
+            let FAIR_PUBDATA_PRICE := mload(128)
+            printHex(FAIR_PUBDATA_PRICE)
+            printString("l2Price")
+            let FAIR_L2_GAS_PRICE := mload(160)
+            printHex(FAIR_L2_GAS_PRICE)
 
             /// @notice the address that will be the beneficiary of all the fees
             let OPERATOR_ADDRESS := mload(0)
@@ -4074,13 +4086,6 @@ object "Bootloader" {
             // At start storing keccak256("") as `chainedPriorityTxsHash` and 0 as `numberOfLayer1Txs`
             mstore(PRIORITY_TXS_L1_DATA_BEGIN_BYTE(), EMPTY_STRING_KECCAK())
             mstore(add(PRIORITY_TXS_L1_DATA_BEGIN_BYTE(), 32), 0)
-
-            printString("pubdataPrice")
-            let FAIR_PUBDATA_PRICE := mload(128)
-            printHex(FAIR_PUBDATA_PRICE)
-            printString("l2Price")
-            let FAIR_L2_GAS_PRICE := mload(160)
-            printHex(FAIR_L2_GAS_PRICE)
 
             // Iterating through transaction descriptions
             let transactionIndex := 0
