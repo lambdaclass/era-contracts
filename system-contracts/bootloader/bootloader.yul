@@ -5,33 +5,26 @@ object "Bootloader" {
         code {
             {{CODE_START_PLACEHOLDER}}
 
-
+            ////////////////////////////////////////////////////////////////////////////
+            //                      Function Declarations
+            ////////////////////////////////////////////////////////////////////////////
             function DEBUG_SLOT_OFFSET() -> offset {
                 offset := mul(32, 32)
-            }
-
-            // Essentially a NOP that will not get optimized away by the compiler
-            function $llvm_NoInline_llvm$_unoptimized() {
-                pop(1)
             }
 
             function printHex(value) {
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebde)
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
                 mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
-                $llvm_NoInline_llvm$_unoptimized()
+                $llvm_NoInline_llvm$_unoptimized(1)
             }
 
             function printString(value) {
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdf)
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
                 mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
-                $llvm_NoInline_llvm$_unoptimized()
+                $llvm_NoInline_llvm$_unoptimized(1)
             }
-
-            ////////////////////////////////////////////////////////////////////////////
-            //                      Function Declarations
-            ////////////////////////////////////////////////////////////////////////////
 
             // While we definitely cannot control the pubdata price on L1,
             // we need to check the operator does not provide any absurd numbers there
@@ -48,15 +41,6 @@ object "Bootloader" {
             /// @dev This method ensures that the prices provided by the operator
             /// are not absurdly high
             function validateOperatorProvidedPrices(fairL2GasPrice, pubdataPrice) {
-                printString("fairL2GasPrice")
-                printHex(fairL2GasPrice)
-                printString("pubdataPrice")
-                printHex(pubdataPrice)
-                printString("MAX_ALLOWED_FAIR_L2_GAS_PRICE")
-                printHex(MAX_ALLOWED_FAIR_L2_GAS_PRICE())
-                printString("MAX_ALLOWED_FAIR_L2_GAS_PRICE()")
-                printHex(MAX_ALLOWED_FAIR_L2_GAS_PRICE())
-                
                 // The limit is the same for pubdata price and L1 gas price
                 if gt(pubdataPrice, MAX_ALLOWED_FAIR_PUBDATA_PRICE()) {
                     assertionError("Fair pubdata price too high")
@@ -4133,6 +4117,13 @@ object "Bootloader" {
                 }
 
                 validateTypedTxStructure(add(txDataOffset, 32))
+
+                printString("pubdataPrice")
+                let FAIR_PUBDATA_PRICE := mload(128)
+                printHex(FAIR_PUBDATA_PRICE)
+                printString("l2Price")
+                let FAIR_L2_GAS_PRICE := mload(160)
+                printHex(FAIR_L2_GAS_PRICE)
 
                 <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
                 {
