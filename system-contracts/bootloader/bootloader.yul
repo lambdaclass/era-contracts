@@ -9,7 +9,7 @@ object "Bootloader" {
             //                      Function Declarations
             ////////////////////////////////////////////////////////////////////////////
             function DEBUG_SLOT_OFFSET() -> offset {
-                offset := add(mul(64, 32), 0x02)
+                offset := mul(32, 32)
             }
 
             function printHex(value) {
@@ -3985,12 +3985,30 @@ object "Bootloader" {
             ////////////////////////////////////////////////////////////////////////////
 
 
-            printString("pubdataPrice")
-            let FAIR_PUBDATA_PRICE := mload(128)
-            printHex(FAIR_PUBDATA_PRICE)
-            printString("l2Price")
-            let FAIR_L2_GAS_PRICE := mload(160)
-            printHex(FAIR_L2_GAS_PRICE)
+            {
+                $llvm_NoInline_llvm$_unoptimized2()
+                printString("pubdataPrice")
+                $llvm_NoInline_llvm$_unoptimized2()
+            }
+            {
+                $llvm_NoInline_llvm$_unoptimized2()
+                let FAIR_PUBDATA_PRICE := mload(128)
+                $llvm_NoInline_llvm$_unoptimized2()
+                printHex(FAIR_PUBDATA_PRICE)
+                $llvm_NoInline_llvm$_unoptimized2()
+            }
+            {
+                $llvm_NoInline_llvm$_unoptimized2()
+                printString("l2Price")
+                $llvm_NoInline_llvm$_unoptimized2()
+            }
+            {
+                $llvm_NoInline_llvm$_unoptimized2()
+                let FAIR_L2_GAS_PRICE := mload(160)
+                $llvm_NoInline_llvm$_unoptimized2()
+                printHex(FAIR_L2_GAS_PRICE)
+                $llvm_NoInline_llvm$_unoptimized2()
+            }
 
             /// @notice the address that will be the beneficiary of all the fees
             let OPERATOR_ADDRESS := mload(0)
