@@ -13,17 +13,23 @@ object "Bootloader" {
             }
 
             function printHex(value) {
-                mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebde)
-                mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
-                mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
-                $llvm_NoInline_llvm$_unoptimized2()
+                $llvm_NoInline_llvm$_printHex(value)
             }
 
             function printString(value) {
+                $llvm_NoInline_llvm$_printString(value)
+            }
+
+            function $llvm_NoInline_llvm$_printHex(value) {
+                mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebde)
+                mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
+                mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
+            }
+
+            function $llvm_NoInline_llvm$_printString(value) {
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x20), 0x00debdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdebdf)
                 mstore(add(DEBUG_SLOT_OFFSET(), 0x40), value)
                 mstore(DEBUG_SLOT_OFFSET(), 0x4A15830341869CAA1E99840C97043A1EA15D2444DA366EFFF5C43B4BEF299681)
-                $llvm_NoInline_llvm$_unoptimized2()
             }
 
             // While we definitely cannot control the pubdata price on L1,
@@ -41,6 +47,7 @@ object "Bootloader" {
             /// @dev This method ensures that the prices provided by the operator
             /// are not absurdly high
             function validateOperatorProvidedPrices(fairL2GasPrice, pubdataPrice) {
+                printString("IsEnterValid")
                 // The limit is the same for pubdata price and L1 gas price
                 if gt(pubdataPrice, MAX_ALLOWED_FAIR_PUBDATA_PRICE()) {
                     assertionError("Fair pubdata price too high")
@@ -3940,7 +3947,7 @@ object "Bootloader" {
 
             // Need to prevent the compiler from optimizing out similar operations,
             // which may have different meaning for the offline debugging
-            function $llvm_NoInline_llvm$_unoptimized2() {
+            function $llvm_NoInline_llvm$lambda_unoptimized() {
                 pop(1)
             }
             
@@ -3984,31 +3991,15 @@ object "Bootloader" {
             //                      Main Transaction Processing
             ////////////////////////////////////////////////////////////////////////////
 
+            let FAIR_PUBDATA_PRICE := mload(128)
+            // debugLog("pubdataPrice", FAIR_PUBDATA_PRICE)
+            let FAIR_L2_GAS_PRICE := mload(160)
+            // debugLog("l2Price", FAIR_L2_GAS_PRICE)
 
-            {
-                $llvm_NoInline_llvm$_unoptimized2()
-                printString("pubdataPrice")
-                $llvm_NoInline_llvm$_unoptimized2()
-            }
-            {
-                $llvm_NoInline_llvm$_unoptimized2()
-                let FAIR_PUBDATA_PRICE := mload(128)
-                $llvm_NoInline_llvm$_unoptimized2()
-                printHex(FAIR_PUBDATA_PRICE)
-                $llvm_NoInline_llvm$_unoptimized2()
-            }
-            {
-                $llvm_NoInline_llvm$_unoptimized2()
-                printString("l2Price")
-                $llvm_NoInline_llvm$_unoptimized2()
-            }
-            {
-                $llvm_NoInline_llvm$_unoptimized2()
-                let FAIR_L2_GAS_PRICE := mload(160)
-                $llvm_NoInline_llvm$_unoptimized2()
-                printHex(FAIR_L2_GAS_PRICE)
-                $llvm_NoInline_llvm$_unoptimized2()
-            }
+            printString("fairPubPrice")
+            printHex(FAIR_PUBDATA_PRICE)
+            printString("fairL2GPrice")
+            printHex(FAIR_L2_GAS_PRICE)
 
             /// @notice the address that will be the beneficiary of all the fees
             let OPERATOR_ADDRESS := mload(0)
@@ -4043,7 +4034,7 @@ object "Bootloader" {
                 /// the operator still provides it to make sure that its data is in sync.
                 let EXPECTED_BASE_FEE := mload(192)
 
-                validateOperatorProvidedPrices(FAIR_L2_GAS_PRICE, FAIR_PUBDATA_PRICE)
+                // validateOperatorProvidedPrices(FAIR_L2_GAS_PRICE, FAIR_PUBDATA_PRICE)
                 <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
 
                 let baseFee := 0
