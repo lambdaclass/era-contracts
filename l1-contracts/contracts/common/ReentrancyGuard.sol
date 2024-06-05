@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.24;
+
+// solhint-disable gas-custom-errors
 
 /**
  * @custom:security-contact security@matterlabs.dev

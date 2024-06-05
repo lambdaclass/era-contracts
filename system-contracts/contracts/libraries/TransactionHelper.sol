@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.20;
 
-import "../openzeppelin/token/ERC20/IERC20.sol";
-import "../openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "../openzeppelin/token/ERC20/IERC20.sol";
+import {SafeERC20} from "../openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
-import "../interfaces/IPaymasterFlow.sol";
-import "../interfaces/IContractDeployer.sol";
-import {ETH_TOKEN_SYSTEM_CONTRACT, BOOTLOADER_FORMAL_ADDRESS} from "../Constants.sol";
-import "./RLPEncoder.sol";
-import "./EfficientCall.sol";
+import {IPaymasterFlow} from "../interfaces/IPaymasterFlow.sol";
+import {BASE_TOKEN_SYSTEM_CONTRACT, BOOTLOADER_FORMAL_ADDRESS} from "../Constants.sol";
+import {RLPEncoder} from "./RLPEncoder.sol";
+import {EfficientCall} from "./EfficientCall.sol";
+import {UnsupportedTxType, InvalidInput, UnsupportedPaymasterFlow} from "../SystemContractErrors.sol";
 
 /// @dev The type id of zkSync's EIP-712-signed transaction.
 uint8 constant EIP_712_TX_TYPE = 0x71;
@@ -79,9 +79,10 @@ library TransactionHelper {
     using SafeERC20 for IERC20;
 
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 constant EIP712_DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId)");
+    bytes32 internal constant EIP712_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId)");
 
-    bytes32 constant EIP712_TRANSACTION_TYPE_HASH =
+    bytes32 internal constant EIP712_TRANSACTION_TYPE_HASH =
         keccak256(
             "Transaction(uint256 txType,uint256 from,uint256 to,uint256 gasLimit,uint256 gasPerPubdataByteLimit,uint256 maxFeePerGas,uint256 maxPriorityFeePerGas,uint256 paymaster,uint256 nonce,uint256 value,bytes data,bytes32[] factoryDeps,bytes paymasterInput)"
         );
@@ -90,9 +91,9 @@ library TransactionHelper {
     /// @param _addr The address of the token
     /// @return `true` or `false` based on whether the token is Ether.
     /// @dev This method assumes that address is Ether either if the address is 0 (for convenience)
-    /// or if the address is the address of the L2EthToken system contract.
+    /// or if the address is the address of the L2BaseToken system contract.
     function isEthToken(uint256 _addr) internal pure returns (bool) {
-        return _addr == uint256(uint160(address(ETH_TOKEN_SYSTEM_CONTRACT))) || _addr == 0;
+        return _addr == uint256(uint160(address(BASE_TOKEN_SYSTEM_CONTRACT))) || _addr == 0;
     }
 
     /// @notice Calculate the suggested signed hash of the transaction,
@@ -109,7 +110,7 @@ library TransactionHelper {
         } else {
             // Currently no other transaction types are supported.
             // Any new transaction types will be processed in a similar manner.
-            revert("Encoding unsupported tx");
+            revert UnsupportedTxType(_transaction.txType);
         }
     }
 
@@ -117,6 +118,7 @@ library TransactionHelper {
     /// @return keccak256 hash of the EIP-712 encoded representation of transaction
     function _encodeHashEIP712Transaction(Transaction calldata _transaction) private view returns (bytes32) {
         bytes32 structHash = keccak256(
+            // solhint-disable-next-line func-named-parameters
             abi.encode(
                 EIP712_TRANSACTION_TYPE_HASH,
                 _transaction.txType,
@@ -203,6 +205,7 @@ library TransactionHelper {
 
         return
             keccak256(
+                // solhint-disable-next-line func-named-parameters
                 bytes.concat(
                     encodedListLength,
                     encodedNonce,
@@ -235,6 +238,7 @@ library TransactionHelper {
                 ? RLPEncoder.encodeAddress(address(uint160(_transaction.to)))
                 : bytes(hex"80");
             bytes memory encodedValue = RLPEncoder.encodeUint256(_transaction.value);
+            // solhint-disable-next-line func-named-parameters
             encodedFixedLengthParams = bytes.concat(
                 encodedChainId,
                 encodedNonce,
@@ -277,6 +281,7 @@ library TransactionHelper {
 
         return
             keccak256(
+                // solhint-disable-next-line func-named-parameters
                 bytes.concat(
                     "\x01",
                     encodedListLength,
@@ -308,6 +313,7 @@ library TransactionHelper {
                 ? RLPEncoder.encodeAddress(address(uint160(_transaction.to)))
                 : bytes(hex"80");
             bytes memory encodedValue = RLPEncoder.encodeUint256(_transaction.value);
+            // solhint-disable-next-line func-named-parameters
             encodedFixedLengthParams = bytes.concat(
                 encodedChainId,
                 encodedNonce,
@@ -351,6 +357,7 @@ library TransactionHelper {
 
         return
             keccak256(
+                // solhint-disable-next-line func-named-parameters
                 bytes.concat(
                     "\x02",
                     encodedListLength,
@@ -366,14 +373,15 @@ library TransactionHelper {
     /// for tokens, etc. For more information on the expected behavior, check out
     /// the "Paymaster flows" section in the documentation.
     function processPaymasterInput(Transaction calldata _transaction) internal {
-        require(_transaction.paymasterInput.length >= 4, "The standard paymaster input must be at least 4 bytes long");
+        if (_transaction.paymasterInput.length < 4) {
+            revert InvalidInput();
+        }
 
         bytes4 paymasterInputSelector = bytes4(_transaction.paymasterInput[0:4]);
         if (paymasterInputSelector == IPaymasterFlow.approvalBased.selector) {
-            require(
-                _transaction.paymasterInput.length >= 68,
-                "The approvalBased paymaster input must be at least 68 bytes long"
-            );
+            if (_transaction.paymasterInput.length < 68) {
+                revert InvalidInput();
+            }
 
             // While the actual data consists of address, uint256 and bytes data,
             // the data is needed only for the paymaster, so we ignore it here for the sake of optimization
@@ -391,7 +399,7 @@ library TransactionHelper {
         } else if (paymasterInputSelector == IPaymasterFlow.general.selector) {
             // Do nothing. general(bytes) paymaster flow means that the paymaster must interpret these bytes on his own.
         } else {
-            revert("Unsupported paymaster flow");
+            revert UnsupportedPaymasterFlow();
         }
     }
 

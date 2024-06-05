@@ -2,11 +2,14 @@
 
 pragma solidity ^0.8.20;
 
-import "./interfaces/IAccount.sol";
-import "./libraries/TransactionHelper.sol";
-import "./libraries/SystemContractHelper.sol";
-import "./libraries/EfficientCall.sol";
+import {IAccount, ACCOUNT_VALIDATION_SUCCESS_MAGIC} from "./interfaces/IAccount.sol";
+import {TransactionHelper, Transaction} from "./libraries/TransactionHelper.sol";
+import {SystemContractsCaller} from "./libraries/SystemContractsCaller.sol";
+import {SystemContractHelper} from "./libraries/SystemContractHelper.sol";
+import {EfficientCall} from "./libraries/EfficientCall.sol";
 import {BOOTLOADER_FORMAL_ADDRESS, NONCE_HOLDER_SYSTEM_CONTRACT, DEPLOYER_SYSTEM_CONTRACT, INonceHolder} from "./Constants.sol";
+import {Utils} from "./libraries/Utils.sol";
+import {InsufficientFunds, InvalidSig, SigField, FailedToPayOperator} from "./SystemContractErrors.sol";
 
 /**
  * @author Matter Labs
@@ -62,7 +65,7 @@ contract DefaultAccount is IAccount {
     /// @param _suggestedSignedHash The suggested hash of the transaction to be signed by the user.
     /// This is the hash that is signed by the EOA by default.
     /// @param _transaction The transaction structure itself.
-    /// @dev Besides the params above, it also accepts unused first paramter "_txHash", which
+    /// @dev Besides the params above, it also accepts unused first parameter "_txHash", which
     /// is the unique (canonical) hash of the transaction.
     function validateTransaction(
         bytes32, // _txHash
@@ -93,11 +96,13 @@ contract DefaultAccount is IAccount {
         // is, the bytes32(0) will be supplied.
         bytes32 txHash = _suggestedSignedHash != bytes32(0) ? _suggestedSignedHash : _transaction.encodeHash();
 
-        // The fact there is are enough balance for the account
+        // The fact there is enough balance for the account
         // should be checked explicitly to prevent user paying for fee for a
         // transaction that wouldn't be included on Ethereum.
         uint256 totalRequiredBalance = _transaction.totalRequiredBalance();
-        require(totalRequiredBalance <= address(this).balance, "Not enough balance for fee + value");
+        if (totalRequiredBalance > address(this).balance) {
+            revert InsufficientFunds(totalRequiredBalance, address(this).balance);
+        }
 
         if (_isValidSignature(txHash, _transaction.signature)) {
             magic = ACCOUNT_VALIDATION_SUCCESS_MAGIC;
@@ -152,7 +157,13 @@ contract DefaultAccount is IAccount {
                 selector == DEPLOYER_SYSTEM_CONTRACT.createAccount.selector ||
                 selector == DEPLOYER_SYSTEM_CONTRACT.create2Account.selector;
         }
-        bool success = EfficientCall.rawCall(gas, to, value, data, isSystemCall);
+        bool success = EfficientCall.rawCall({
+            _gas: gas,
+            _address: to,
+            _value: value,
+            _data: data,
+            _isSystem: isSystemCall
+        });
         if (!success) {
             EfficientCall.propagateRevert();
         }
@@ -161,9 +172,11 @@ contract DefaultAccount is IAccount {
     /// @notice Validation that the ECDSA signature of the transaction is correct.
     /// @param _hash The hash of the transaction to be signed.
     /// @param _signature The signature of the transaction.
-    /// @return EIP1271_SUCCESS_RETURN_VALUE if the signaure is correct. It reverts otherwise.
+    /// @return EIP1271_SUCCESS_RETURN_VALUE if the signature is correct. It reverts otherwise.
     function _isValidSignature(bytes32 _hash, bytes memory _signature) internal view returns (bool) {
-        require(_signature.length == 65, "Signature length is incorrect");
+        if (_signature.length != 65) {
+            revert InvalidSig(SigField.Length, _signature.length);
+        }
         uint8 v;
         bytes32 r;
         bytes32 s;
@@ -176,7 +189,9 @@ contract DefaultAccount is IAccount {
             s := mload(add(_signature, 0x40))
             v := and(mload(add(_signature, 0x41)), 0xff)
         }
-        require(v == 27 || v == 28, "v is neither 27 nor 28");
+        if (v != 27 && v != 28) {
+            revert InvalidSig(SigField.V, v);
+        }
 
         // EIP-2 still allows signature malleability for ecrecover(). Remove this possibility and make the signature
         // unique. Appendix F in the Ethereum Yellow paper (https://ethereum.github.io/yellowpaper/paper.pdf), defines
@@ -187,7 +202,9 @@ contract DefaultAccount is IAccount {
         // with 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - s1 and flip v from 27 to 28 or
         // vice versa. If your library also generates signatures with 0/1 for v instead 27/28, add 27 to v to accept
         // these malleable signatures as well.
-        require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, "Invalid s");
+        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            revert InvalidSig(SigField.S, uint256(s));
+        }
 
         address recoveredAddress = ecrecover(_hash, v, r, s);
 
@@ -205,7 +222,9 @@ contract DefaultAccount is IAccount {
         Transaction calldata _transaction
     ) external payable ignoreNonBootloader ignoreInDelegateCall {
         bool success = _transaction.payToTheBootloader();
-        require(success, "Failed to pay the fee to the operator");
+        if (!success) {
+            revert FailedToPayOperator();
+        }
     }
 
     /// @notice Method, where the user should prepare for the transaction to be

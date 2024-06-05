@@ -4,13 +4,14 @@ pragma solidity ^0.8.20;
 
 import {ImmutableData} from "./interfaces/IImmutableSimulator.sol";
 import {IContractDeployer} from "./interfaces/IContractDeployer.sol";
-import {CREATE2_EVM_PREFIX, CREATE2_PREFIX, CREATE_PREFIX, NONCE_HOLDER_SYSTEM_CONTRACT, ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT, FORCE_DEPLOYER, MAX_SYSTEM_CONTRACT_ADDRESS, KNOWN_CODE_STORAGE_CONTRACT, ETH_TOKEN_SYSTEM_CONTRACT, IMMUTABLE_SIMULATOR_SYSTEM_CONTRACT, COMPLEX_UPGRADER_CONTRACT, KECCAK256_SYSTEM_CONTRACT} from "./Constants.sol";
+import {CREATE2_EVM_PREFIX,CREATE2_PREFIX, CREATE_PREFIX, NONCE_HOLDER_SYSTEM_CONTRACT, ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT, FORCE_DEPLOYER, MAX_SYSTEM_CONTRACT_ADDRESS, KNOWN_CODE_STORAGE_CONTRACT, BASE_TOKEN_SYSTEM_CONTRACT, IMMUTABLE_SIMULATOR_SYSTEM_CONTRACT, COMPLEX_UPGRADER_CONTRACT} from "./Constants.sol";
 
 import {Utils} from "./libraries/Utils.sol";
 import {EfficientCall} from "./libraries/EfficientCall.sol";
 import {SystemContractHelper} from "./libraries/SystemContractHelper.sol";
 import {ISystemContract} from "./interfaces/ISystemContract.sol";
 import {RLPEncoder} from "./libraries/RLPEncoder.sol";
+import {Unauthorized, InvalidNonceOrderingChange, ValuesNotEqual, EmptyBytes32, NotAllowedToDeployInKernelSpace, HashIsNonZero, NonEmptyAccount, UnknownCodeHash, NonEmptyMsgValue} from "./SystemContractErrors.sol";
 
 /**
  * @author Matter Labs
@@ -54,7 +55,9 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
     }
 
     modifier onlySelf() {
-        require(msg.sender == address(this), "Callable only by self");
+        if (msg.sender != address(this)) {
+            revert Unauthorized(msg.sender);
+        }
         _;
     }
 
@@ -102,11 +105,12 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
     function updateNonceOrdering(AccountNonceOrdering _nonceOrdering) external onlySystemCall {
         AccountInfo memory currentInfo = accountInfo[msg.sender];
 
-        require(
-            _nonceOrdering == AccountNonceOrdering.Arbitrary &&
-                currentInfo.nonceOrdering == AccountNonceOrdering.Sequential,
-            "It is only possible to change from sequential to arbitrary ordering"
-        );
+        if (
+            _nonceOrdering != AccountNonceOrdering.Arbitrary &&
+            currentInfo.nonceOrdering != AccountNonceOrdering.Sequential
+        ) {
+            revert InvalidNonceOrderingChange();
+        }
 
         currentInfo.nonceOrdering = _nonceOrdering;
         _storeAccountInfo(msg.sender, currentInfo);
@@ -131,6 +135,7 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         bytes32 constructorInputHash = EfficientCall.keccak(_input);
 
         bytes32 hash = keccak256(
+            // solhint-disable-next-line func-named-parameters
             bytes.concat(CREATE2_PREFIX, bytes32(uint256(uint160(_sender))), _salt, _bytecodeHash, constructorInputHash)
         );
 
@@ -157,7 +162,6 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
     /// @param _salt The CREATE2 salt
     /// @param _bytecodeHash The correctly formatted hash of the bytecode.
     /// @param _input The constructor calldata
-    /// @dev In case of a revert, the zero address should be returned.
     function create2(
         bytes32 _salt,
         bytes32 _bytecodeHash,
@@ -171,7 +175,6 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
     /// @param _input The constructor calldata
     /// @dev This method also accepts nonce as one of its parameters.
     /// It is not used anywhere and it needed simply for the consistency for the compiler
-    /// @dev In case of a revert, the zero address should be returned.
     /// Note: this method may be callable only in system mode,
     /// that is checked in the `createAccount` by `onlySystemCall` modifier.
     function create(
@@ -219,7 +222,6 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
     /// @param _bytecodeHash The correctly formatted hash of the bytecode.
     /// @param _input The constructor calldata.
     /// @param _aaVersion The account abstraction version to use.
-    /// @dev In case of a revert, the zero address should be returned.
     /// Note: this method may be callable only in system mode,
     /// that is checked in the `createAccount` by `onlySystemCall` modifier.
     function create2Account(
@@ -242,7 +244,6 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
     /// @param _aaVersion The account abstraction version to use.
     /// @dev This method also accepts salt as one of its parameters.
     /// It is not used anywhere and it needed simply for the consistency for the compiler
-    /// @dev In case of a revert, the zero address should be returned.
     function createAccount(
         bytes32, // salt
         bytes32 _bytecodeHash,
@@ -286,24 +287,23 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         newAccountInfo.nonceOrdering = AccountNonceOrdering.Sequential;
         _storeAccountInfo(_deployment.newAddress, newAccountInfo);
 
-        _constructContract(
-            _sender,
-            _deployment.newAddress,
-            _deployment.bytecodeHash,
-            _deployment.input,
-            false,
-            _deployment.callConstructor
-        );
+        _constructContract({
+            _sender: _sender,
+            _newAddress: _deployment.newAddress,
+            _bytecodeHash: _deployment.bytecodeHash,
+            _input: _deployment.input,
+            _isSystem: false,
+            _callConstructor: _deployment.callConstructor
+        });
     }
 
     /// @notice This method is to be used only during an upgrade to set bytecodes on specific addresses.
     /// @dev We do not require `onlySystemCall` here, since the method is accessible only
     /// by `FORCE_DEPLOYER`.
     function forceDeployOnAddresses(ForceDeployment[] calldata _deployments) external payable {
-        require(
-            msg.sender == FORCE_DEPLOYER || msg.sender == address(COMPLEX_UPGRADER_CONTRACT),
-            "Can only be called by FORCE_DEPLOYER or COMPLEX_UPGRADER_CONTRACT"
-        );
+        if (msg.sender != FORCE_DEPLOYER && msg.sender != address(COMPLEX_UPGRADER_CONTRACT)) {
+            revert Unauthorized(msg.sender);
+        }
 
         uint256 deploymentsLength = _deployments.length;
         // We need to ensure that the `value` provided by the call is enough to provide `value`
@@ -312,7 +312,9 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         for (uint256 i = 0; i < deploymentsLength; ++i) {
             sumOfValues += _deployments[i].value;
         }
-        require(msg.value == sumOfValues, "`value` provided is not equal to the combined `value`s of deployments");
+        if (msg.value != sumOfValues) {
+            revert ValuesNotEqual(sumOfValues, msg.value);
+        }
 
         for (uint256 i = 0; i < deploymentsLength; ++i) {
             this.forceDeployOnAddress{value: _deployments[i].value}(_deployments[i], msg.sender);
@@ -325,16 +327,22 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         AccountAbstractionVersion _aaVersion,
         bytes calldata _input
     ) internal {
-        require(_bytecodeHash != bytes32(0x0), "BytecodeHash cannot be zero");
-        require(uint160(_newAddress) > MAX_SYSTEM_CONTRACT_ADDRESS, "Can not deploy contracts in kernel space");
+        if (_bytecodeHash == bytes32(0x0)) {
+            revert EmptyBytes32();
+        }
+        if (uint160(_newAddress) <= MAX_SYSTEM_CONTRACT_ADDRESS) {
+            revert NotAllowedToDeployInKernelSpace();
+        }
 
         // We do not allow deploying twice on the same address.
-        require(
-            ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT.getCodeHash(uint256(uint160(_newAddress))) == 0x0,
-            "Code hash is non-zero"
-        );
+        bytes32 codeHash = ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT.getCodeHash(uint256(uint160(_newAddress)));
+        if (codeHash != 0x0) {
+            revert HashIsNonZero(codeHash);
+        }
         // Do not allow deploying contracts to default accounts that have already executed transactions.
-        require(NONCE_HOLDER_SYSTEM_CONTRACT.getRawNonce(_newAddress) == 0x00, "Account is occupied");
+        if (NONCE_HOLDER_SYSTEM_CONTRACT.getRawNonce(_newAddress) != 0x00) {
+            revert NonEmptyAccount();
+        }
 
         _performDeployOnAddress(_bytecodeHash, _newAddress, _aaVersion, _input, true);
     }
@@ -412,7 +420,9 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
     /// @notice Check that bytecode hash is marked as known on the `KnownCodeStorage` system contracts
     function _ensureBytecodeIsKnown(bytes32 _bytecodeHash) internal view {
         uint256 knownCodeMarker = KNOWN_CODE_STORAGE_CONTRACT.getMarker(_bytecodeHash);
-        require(knownCodeMarker > 0, "The code hash is not known");
+        if (knownCodeMarker == 0) {
+            revert UnknownCodeHash(_bytecodeHash);
+        }
     }
 
     /// @notice Ensures that the _newAddress and assigns a new contract hash to it
@@ -442,7 +452,7 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         if (_callConstructor) {
             // 1. Transfer the balance to the new address on the constructor call.
             if (value > 0) {
-                ETH_TOKEN_SYSTEM_CONTRACT.transferFromTo(address(this), _newAddress, value);
+                BASE_TOKEN_SYSTEM_CONTRACT.transferFromTo(address(this), _newAddress, value);
             }
             // 2. Set the constructed code hash on the account
             _storeConstructingByteCodeHashOnAddress(_newAddress, _bytecodeHash);
@@ -452,14 +462,23 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
                 // Safe to cast value, because `msg.value` <= `uint128.max` due to `MessageValueSimulator` invariant
                 SystemContractHelper.setValueForNextFarCall(uint128(value));
             }
-            bytes memory returnData = EfficientCall.mimicCall(gasleft(), _newAddress, _input, _sender, true, _isSystem);
+            bytes memory returnData = EfficientCall.mimicCall({
+                _gas: gasleft(),
+                _address: _newAddress,
+                _data: _input,
+                _whoToMimic: _sender,
+                _isConstructor: true,
+                _isSystem: _isSystem
+            });
             // 4. Mark bytecode hash as constructed
             ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT.markAccountCodeHashAsConstructed(_newAddress);
             // 5. Set the contract immutables
             ImmutableData[] memory immutables = abi.decode(returnData, (ImmutableData[]));
             IMMUTABLE_SIMULATOR_SYSTEM_CONTRACT.setImmutables(_newAddress, immutables);
         } else {
-            require(value == 0, "The value must be zero if we do not call the constructor");
+            if (value != 0) {
+                revert NonEmptyMsgValue();
+            }
             // If we do not call the constructor, we need to set the constructed code hash.
             ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT.storeAccountConstructedCodeHash(_newAddress, _bytecodeHash);
         }

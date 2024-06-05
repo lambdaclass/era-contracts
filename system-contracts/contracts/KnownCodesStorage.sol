@@ -6,6 +6,7 @@ import {IKnownCodesStorage} from "./interfaces/IKnownCodesStorage.sol";
 import {ISystemContract} from "./interfaces/ISystemContract.sol";
 import {Utils} from "./libraries/Utils.sol";
 import {COMPRESSOR_CONTRACT, L1_MESSENGER_CONTRACT, DEPLOYER_SYSTEM_CONTRACT} from "./Constants.sol";
+import {Unauthorized, MalformedBytecode, BytecodeError} from "./SystemContractErrors.sol";
 
 /**
  * @author Matter Labs
@@ -13,11 +14,13 @@ import {COMPRESSOR_CONTRACT, L1_MESSENGER_CONTRACT, DEPLOYER_SYSTEM_CONTRACT} fr
  * @notice The storage of this contract will basically serve as a mapping for the known code hashes.
  * @dev Code hash is not strictly a hash, it's a structure where the first byte denotes the version of the hash,
  * the second byte denotes whether the contract is constructed, and the next two bytes denote the length in 32-byte words.
- * words. And then the next 28 bytes is the truncated hash.
+ * And then the next 28 bytes is the truncated hash.
  */
 contract KnownCodesStorage is IKnownCodesStorage, ISystemContract {
     modifier onlyCompressor() {
-        require(msg.sender == address(COMPRESSOR_CONTRACT), "Callable only by the compressor");
+        if (msg.sender != address(COMPRESSOR_CONTRACT)) {
+            revert Unauthorized(msg.sender);
+        }
         _;
     }
 
@@ -73,9 +76,13 @@ contract KnownCodesStorage is IKnownCodesStorage, ISystemContract {
     /// That's why we need to validate it
     function _validateBytecode(bytes32 _bytecodeHash) internal pure {
         uint8 version = uint8(_bytecodeHash[0]);
-        require(version == 1 && _bytecodeHash[1] == bytes1(0), "Incorrectly formatted bytecodeHash");
+        if (version != 1 || _bytecodeHash[1] != bytes1(0)) {
+            revert MalformedBytecode(BytecodeError.Version);
+        }
 
-        require(Utils.bytecodeLenInWords(_bytecodeHash) % 2 == 1, "Code length in words must be odd");
+        if (Utils.bytecodeLenInWords(_bytecodeHash) % 2 == 0) {
+            revert MalformedBytecode(BytecodeError.NumberOfWords);
+        }
     }
 
     function publishEVMBytecode(bytes calldata bytecode) external onlyCallFrom(address(DEPLOYER_SYSTEM_CONTRACT)) {

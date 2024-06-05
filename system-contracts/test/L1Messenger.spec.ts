@@ -89,17 +89,17 @@ describe("L1Messenger tests", () => {
       await (
         await l1Messenger
           .connect(bootloaderAccount)
-          .publishPubdataAndClearState(emulator.buildTotalL2ToL1PubdataAndStateDiffs(), { gasLimit: 10000000 })
+          .publishPubdataAndClearState(emulator.buildTotalL2ToL1PubdataAndStateDiffs(), { gasLimit: 1000000000 })
       ).wait();
     });
 
     it("should revert Too many L2->L1 logs", async () => {
-      // set numberOfLogsBytes to 0x1100 to trigger the revert (max value is 0x1000)
+      // set numberOfLogsBytes to 0x4002 to trigger the revert (max value is 0x4000)
       await expect(
         l1Messenger
           .connect(bootloaderAccount)
-          .publishPubdataAndClearState(emulator.buildTotalL2ToL1PubdataAndStateDiffs({ numberOfLogs: 0x1100 }))
-      ).to.be.rejectedWith("Too many L2->L1 logs");
+          .publishPubdataAndClearState(emulator.buildTotalL2ToL1PubdataAndStateDiffs({ numberOfLogs: 0x4002 }))
+      ).to.be.revertedWithCustomError(l1Messenger, "ReconstructionMismatch");
     });
 
     it("should revert logshashes mismatch", async () => {
@@ -121,7 +121,7 @@ describe("L1Messenger tests", () => {
         l1Messenger
           .connect(bootloaderAccount)
           .publishPubdataAndClearState(emulator.buildTotalL2ToL1PubdataAndStateDiffs(overrideData))
-      ).to.be.rejectedWith("reconstructedChainedLogsHash is not equal to chainedLogsHash");
+      ).to.be.revertedWithCustomError(l1Messenger, "ReconstructionMismatch");
     });
 
     it("should revert chainedMessageHash mismatch", async () => {
@@ -133,7 +133,7 @@ describe("L1Messenger tests", () => {
         l1Messenger
           .connect(bootloaderAccount)
           .publishPubdataAndClearState(emulator.buildTotalL2ToL1PubdataAndStateDiffs(overrideData))
-      ).to.be.rejectedWith("reconstructedChainedMessagesHash is not equal to chainedMessagesHash");
+      ).to.be.revertedWithCustomError(l1Messenger, "ReconstructionMismatch");
     });
 
     it("should revert state diff compression version mismatch", async () => {
@@ -151,7 +151,7 @@ describe("L1Messenger tests", () => {
             version: ethers.utils.hexZeroPad(ethers.utils.hexlify(66), 1),
           })
         )
-      ).to.be.rejectedWith("state diff compression version mismatch");
+      ).to.be.revertedWithCustomError(l1Messenger, "ReconstructionMismatch");
     });
 
     it("should revert extra data", async () => {
@@ -162,14 +162,15 @@ describe("L1Messenger tests", () => {
           .publishPubdataAndClearState(
             ethers.utils.concat([emulator.buildTotalL2ToL1PubdataAndStateDiffs(), Buffer.alloc(1, 64)])
           )
-      ).to.be.rejectedWith("Extra data in the totalL2ToL1Pubdata array");
+      ).to.be.revertedWithCustomError(l1Messenger, "ReconstructionMismatch");
     });
   });
 
   describe("sendL2ToL1Log", async () => {
     it("should revert when not called by the system contract", async () => {
-      await expect(l1Messenger.sendL2ToL1Log(true, logData.key, logData.value)).to.be.rejectedWith(
-        "This method require the caller to be system contract"
+      await expect(l1Messenger.sendL2ToL1Log(true, logData.key, logData.value)).to.be.revertedWithCustomError(
+        l1Messenger,
+        "CallerMustBeSystemContract"
       );
     });
 
@@ -244,10 +245,13 @@ describe("L1Messenger tests", () => {
   describe("requestBytecodeL1Publication", async () => {
     it("should revert when not called by known code storage contract", async () => {
       const byteCodeHash = ethers.utils.hexlify(randomBytes(32));
-      await expect(l1Messenger.requestBytecodeL1Publication(byteCodeHash)).to.be.rejectedWith("Inappropriate caller");
+      await expect(l1Messenger.requestBytecodeL1Publication(byteCodeHash)).to.be.revertedWithCustomError(
+        l1Messenger,
+        "Unauthorized"
+      );
     });
 
-    it("shoud emit event, called by known code system contract", async () => {
+    it("should emit event, called by known code system contract", async () => {
       await expect(
         l1Messenger
           .connect(knownCodeStorageAccount)

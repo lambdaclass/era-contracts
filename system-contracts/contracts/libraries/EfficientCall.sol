@@ -2,9 +2,11 @@
 
 pragma solidity ^0.8.20;
 
-import "./SystemContractHelper.sol";
-import "./Utils.sol";
+import {SystemContractHelper, ADDRESS_MASK} from "./SystemContractHelper.sol";
+import {SystemContractsCaller, CalldataForwardingMode, RAW_FAR_CALL_BY_REF_CALL_ADDRESS, SYSTEM_CALL_BY_REF_CALL_ADDRESS, MSG_VALUE_SIMULATOR_IS_SYSTEM_BIT, MIMIC_CALL_BY_REF_CALL_ADDRESS} from "./SystemContractsCaller.sol";
+import {Utils} from "./Utils.sol";
 import {SHA256_SYSTEM_CONTRACT, KECCAK256_SYSTEM_CONTRACT, MSG_VALUE_SYSTEM_CONTRACT} from "../Constants.sol";
+import {InvalidData} from "../SystemContractErrors.sol";
 
 /**
  * @author Matter Labs
@@ -35,7 +37,9 @@ library EfficientCall {
     /// @return The `keccak256` hash.
     function keccak(bytes calldata _data) internal view returns (bytes32) {
         bytes memory returnData = staticCall(gasleft(), KECCAK256_SYSTEM_CONTRACT, _data);
-        require(returnData.length == 32, "keccak256 returned invalid data");
+        if (returnData.length != 32) {
+            revert InvalidData();
+        }
         return bytes32(returnData);
     }
 
@@ -44,7 +48,9 @@ library EfficientCall {
     /// @return The `sha256` hash.
     function sha(bytes calldata _data) internal view returns (bytes32) {
         bytes memory returnData = staticCall(gasleft(), SHA256_SYSTEM_CONTRACT, _data);
-        require(returnData.length == 32, "sha returned invalid data");
+        if (returnData.length != 32) {
+            revert InvalidData();
+        }
         return bytes32(returnData);
     }
 
@@ -62,7 +68,7 @@ library EfficientCall {
         bytes calldata _data,
         bool _isSystem
     ) internal returns (bytes memory returnData) {
-        bool success = rawCall(_gas, _address, _value, _data, _isSystem);
+        bool success = rawCall({_gas: _gas, _address: _address, _value: _value, _data: _data, _isSystem: _isSystem});
         returnData = _verifyCallResult(success);
     }
 
@@ -110,7 +116,15 @@ library EfficientCall {
         bool _isConstructor,
         bool _isSystem
     ) internal returns (bytes memory returnData) {
-        bool success = rawMimicCall(_gas, _address, _data, _whoToMimic, _isConstructor, _isSystem);
+        bool success = rawMimicCall({
+            _gas: _gas,
+            _address: _address,
+            _data: _data,
+            _whoToMimic: _whoToMimic,
+            _isConstructor: _isConstructor,
+            _isSystem: _isSystem
+        });
+
         returnData = _verifyCallResult(success);
     }
 
@@ -262,14 +276,14 @@ library EfficientCall {
         SystemContractHelper.ptrShrinkIntoActive(shrinkTo);
 
         uint32 gas = Utils.safeCastToU32(_gas);
-        uint256 farCallAbi = SystemContractsCaller.getFarCallABIWithEmptyFatPointer(
-            gas,
+        uint256 farCallAbi = SystemContractsCaller.getFarCallABIWithEmptyFatPointer({
+            gasPassed: gas,
             // Only rollup is supported for now
-            0,
-            CalldataForwardingMode.ForwardFatPointer,
-            _isConstructor,
-            _isSystem
-        );
+            shardId: 0,
+            forwardingMode: CalldataForwardingMode.ForwardFatPointer,
+            isConstructorCall: _isConstructor,
+            isSystemCall: _isSystem
+        });
         SystemContractHelper.ptrPackIntoActivePtr(farCallAbi);
     }
 }
