@@ -1156,6 +1156,7 @@ object "Bootloader" {
                 let innerTxDataOffset := add(txDataOffset, 32)
 
                 setPubdataInfo(gasPerPubdata, basePubdataSpent)
+
                 let gasBeforePreparation := gas()
                 debugLog("gasBeforePreparation", gasBeforePreparation)
 

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {RLPEncoder} from "./RLPEncoder.sol";
 import {EfficientCall} from "./EfficientCall.sol";
-import {MalformedBytecode, BytecodeError, Overflow} from "../SystemContractErrors.sol";
+import {RLPEncoder} from "./RLPEncoder.sol";
 
 /**
  * @author Matter Labs

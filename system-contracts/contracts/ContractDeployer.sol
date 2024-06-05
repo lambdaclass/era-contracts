@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 
 import {ImmutableData} from "./interfaces/IImmutableSimulator.sol";
 import {IContractDeployer} from "./interfaces/IContractDeployer.sol";
-import {CREATE2_EVM_PREFIX,CREATE2_PREFIX, CREATE_PREFIX, NONCE_HOLDER_SYSTEM_CONTRACT, ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT, FORCE_DEPLOYER, MAX_SYSTEM_CONTRACT_ADDRESS, KNOWN_CODE_STORAGE_CONTRACT, BASE_TOKEN_SYSTEM_CONTRACT, IMMUTABLE_SIMULATOR_SYSTEM_CONTRACT, COMPLEX_UPGRADER_CONTRACT} from "./Constants.sol";
+import {CREATE2_PREFIX, CREATE_PREFIX, NONCE_HOLDER_SYSTEM_CONTRACT, ACCOUNT_CODE_STORAGE_SYSTEM_CONTRACT, FORCE_DEPLOYER, MAX_SYSTEM_CONTRACT_ADDRESS, KNOWN_CODE_STORAGE_CONTRACT, BASE_TOKEN_SYSTEM_CONTRACT, IMMUTABLE_SIMULATOR_SYSTEM_CONTRACT, COMPLEX_UPGRADER_CONTRACT} from "./Constants.sol";
 
 import {Utils} from "./libraries/Utils.sol";
 import {EfficientCall} from "./libraries/EfficientCall.sol";
@@ -287,14 +287,14 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         newAccountInfo.nonceOrdering = AccountNonceOrdering.Sequential;
         _storeAccountInfo(_deployment.newAddress, newAccountInfo);
 
-        _constructContract({
-            _sender: _sender,
-            _newAddress: _deployment.newAddress,
-            _bytecodeHash: _deployment.bytecodeHash,
-            _input: _deployment.input,
-            _isSystem: false,
-            _callConstructor: _deployment.callConstructor
-        });
+        _constructContract(
+            _sender,
+            _deployment.newAddress,
+            _deployment.bytecodeHash,
+            _deployment.input,
+            false,
+            _deployment.callConstructor
+        );
     }
 
     /// @notice This method is to be used only during an upgrade to set bytecodes on specific addresses.
@@ -496,7 +496,7 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         uint256 value = msg.value;
         // 1. Transfer the balance to the new address on the constructor call.
         if (value > 0) {
-            ETH_TOKEN_SYSTEM_CONTRACT.transferFromTo(address(this), _newAddress, value);
+            BASE_TOKEN_SYSTEM_CONTRACT.transferFromTo(address(this), _newAddress, value);
         }
 
         // 2. Set the constructed code hash on the account

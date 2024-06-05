@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import {EfficientCall} from "./libraries/EfficientCall.sol";
 import {REAL_SYSTEM_CONTEXT_CONTRACT} from "./Constants.sol";
@@ -82,9 +82,7 @@ contract GasBoundCaller {
         if (pubdataGas != 0) {
             // Here we double check that the additional cost is not higher than the maximum allowed.
             // Note, that the `gasleft()` can be spent on pubdata too.
-            if (pubdataAllowance + gasleft() < pubdataGas + CALL_RETURN_OVERHEAD) {
-                revert InsufficientGas();
-            }
+            require(pubdataAllowance + gasleft() >= pubdataGas + CALL_RETURN_OVERHEAD, "Not enough gas for pubdata");
         }
 
         assembly {
