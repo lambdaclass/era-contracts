@@ -7,6 +7,8 @@ import {EfficientCall} from "./libraries/EfficientCall.sol";
 import {ISystemContract} from "./interfaces/ISystemContract.sol";
 import {SystemContractHelper} from "./libraries/SystemContractHelper.sol";
 import {MSG_VALUE_SIMULATOR_IS_SYSTEM_BIT, REAL_BASE_TOKEN_SYSTEM_CONTRACT} from "./Constants.sol";
+import {InvalidCall} from "./SystemContractErrors.sol";
+
 
 /**
  * @author Matter Labs

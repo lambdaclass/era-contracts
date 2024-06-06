@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {EfficientCall} from "./EfficientCall.sol";
 import {RLPEncoder} from "./RLPEncoder.sol";
+import {MalformedBytecode, BytecodeError, Overflow} from "../SystemContractErrors.sol";
 
 /**
  * @author Matter Labs
