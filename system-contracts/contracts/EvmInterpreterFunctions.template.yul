@@ -817,7 +817,9 @@ function _saveReturndataAfterEVMCall(_outputOffset, _outputLen) -> _gasLeft{
         default {
             returndatacopy(0, 0, 32)
             _gasLeft := mload(0)
-            returndatacopy(_outputOffset, 32, _outputLen)
+            if gt(rtsz,_outputLen) {
+                returndatacopy(_outputOffset, 32, _outputLen)
+            }
             mstore(lastRtSzOffset, sub(rtsz, 32))
 
             // Skip the returnData
@@ -937,7 +939,6 @@ function _performCall(addr,gasToPass,value,argsOffset,argsSize,retOffset,retSize
             retSize
         )
     }
-
     if and(is_evm, iszero(isStatic)) {
         _pushEVMFrame(gasToPassNew, isStatic)
         success := call(gasToPassNew, addr, value, argsOffset, argsSize, 0, 0)
