@@ -926,6 +926,8 @@ object "EVMInterpreter" {
             retOffset, sp := popStackItem(sp)
             retSize, sp := popStackItem(sp)
         
+            addr := and(addr, 0xffffffffffffffffffffffffffffffffffffffff)
+        
             checkMultipleOverflow(argsOffset,argsSize,MEM_OFFSET_INNER())
             checkMultipleOverflow(retOffset, retSize,MEM_OFFSET_INNER())
         
@@ -1045,6 +1047,8 @@ object "EVMInterpreter" {
             argsSize, sp := popStackItem(sp)
             retOffset, sp := popStackItem(sp)
             retSize, sp := popStackItem(sp)
+        
+            addr := and(addr, 0xffffffffffffffffffffffffffffffffffffffff)
         
             // static_gas = 0
             // dynamic_gas = memory_expansion_cost + code_execution_cost + address_access_cost + positive_value_cost + value_to_empty_account_cost
@@ -3632,6 +3636,8 @@ object "EVMInterpreter" {
                 retOffset, sp := popStackItem(sp)
                 retSize, sp := popStackItem(sp)
             
+                addr := and(addr, 0xffffffffffffffffffffffffffffffffffffffff)
+            
                 checkMultipleOverflow(argsOffset,argsSize,MEM_OFFSET_INNER())
                 checkMultipleOverflow(retOffset, retSize,MEM_OFFSET_INNER())
             
@@ -3751,6 +3757,8 @@ object "EVMInterpreter" {
                 argsSize, sp := popStackItem(sp)
                 retOffset, sp := popStackItem(sp)
                 retSize, sp := popStackItem(sp)
+            
+                addr := and(addr, 0xffffffffffffffffffffffffffffffffffffffff)
             
                 // static_gas = 0
                 // dynamic_gas = memory_expansion_cost + code_execution_cost + address_access_cost + positive_value_cost + value_to_empty_account_cost
