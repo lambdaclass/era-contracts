@@ -891,7 +891,9 @@ object "EVMInterpreter" {
                 default {
                     returndatacopy(0, 0, 32)
                     _gasLeft := mload(0)
-                    returndatacopy(_outputOffset, 32, _outputLen)
+                    if gt(rtsz,_outputLen) {
+                        returndatacopy(_outputOffset, 32, _outputLen)
+                    }
                     mstore(lastRtSzOffset, sub(rtsz, 32))
         
                     // Skip the returnData
@@ -1011,7 +1013,6 @@ object "EVMInterpreter" {
                     retSize
                 )
             }
-        
             if and(is_evm, iszero(isStatic)) {
                 _pushEVMFrame(gasToPassNew, isStatic)
                 success := call(gasToPassNew, addr, value, argsOffset, argsSize, 0, 0)
@@ -2156,6 +2157,33 @@ object "EVMInterpreter" {
                 case 0x5B { // OP_JUMPDEST
                     evmGasLeft := chargeGas(evmGasLeft, 1)
                 }
+                case 0x5E { // OP_MCOPY
+                    let destOffset, offset, size
+                    destOffset, sp := popStackItem(sp)
+                    offset, sp := popStackItem(sp)
+                    size, sp := popStackItem(sp)
+            
+                    expandMemory(add(destOffset, size))
+                    expandMemory(add(offset, size))
+            
+                    let oldSize := mul(mload(MEM_OFFSET()),32)
+                    if gt(add(oldSize,size),MAX_POSSIBLE_MEM()) {
+                        revert(0,0)
+                    }
+            
+                    for { let i := 0 } lt(i, size) { i := add(i, 1) } {
+                        mstore8(
+                            add(add(oldSize,MEM_OFFSET_INNER()), i),
+                            shr(248,mload(add(add(offset,MEM_OFFSET_INNER()), i)))
+                        )
+                    }
+                    for { let i := 0 } lt(i, size) { i := add(i, 1) } {
+                        mstore8(
+                            add(add(destOffset,MEM_OFFSET_INNER()), i),
+                            shr(248,mload(add(add(oldSize,MEM_OFFSET_INNER()), i)))
+                        )
+                    }
+                }
                 case 0x5F { // OP_PUSH0
                     evmGasLeft := chargeGas(evmGasLeft, 2)
             
@@ -2661,7 +2689,6 @@ object "EVMInterpreter" {
             
                     offset, sp := popStackItem(sp)
                     size, sp := popStackItem(sp)
-            
             
                     checkOverflow(offset,size)
                     //checkMemOverflow(add(offset,size))
@@ -3570,7 +3597,9 @@ object "EVMInterpreter" {
                     default {
                         returndatacopy(0, 0, 32)
                         _gasLeft := mload(0)
-                        returndatacopy(_outputOffset, 32, _outputLen)
+                        if gt(rtsz,_outputLen) {
+                            returndatacopy(_outputOffset, 32, _outputLen)
+                        }
                         mstore(lastRtSzOffset, sub(rtsz, 32))
             
                         // Skip the returnData
@@ -3690,7 +3719,6 @@ object "EVMInterpreter" {
                         retSize
                     )
                 }
-            
                 if and(is_evm, iszero(isStatic)) {
                     _pushEVMFrame(gasToPassNew, isStatic)
                     success := call(gasToPassNew, addr, value, argsOffset, argsSize, 0, 0)
@@ -4846,6 +4874,33 @@ object "EVMInterpreter" {
                 case 0x5B { // OP_JUMPDEST
                     evmGasLeft := chargeGas(evmGasLeft, 1)
                 }
+                case 0x5E { // OP_MCOPY
+                    let destOffset, offset, size
+                    destOffset, sp := popStackItem(sp)
+                    offset, sp := popStackItem(sp)
+                    size, sp := popStackItem(sp)
+            
+                    expandMemory(add(destOffset, size))
+                    expandMemory(add(offset, size))
+            
+                    let oldSize := mul(mload(MEM_OFFSET()),32)
+                    if gt(add(oldSize,size),MAX_POSSIBLE_MEM()) {
+                        revert(0,0)
+                    }
+            
+                    for { let i := 0 } lt(i, size) { i := add(i, 1) } {
+                        mstore8(
+                            add(add(oldSize,MEM_OFFSET_INNER()), i),
+                            shr(248,mload(add(add(offset,MEM_OFFSET_INNER()), i)))
+                        )
+                    }
+                    for { let i := 0 } lt(i, size) { i := add(i, 1) } {
+                        mstore8(
+                            add(add(destOffset,MEM_OFFSET_INNER()), i),
+                            shr(248,mload(add(add(oldSize,MEM_OFFSET_INNER()), i)))
+                        )
+                    }
+                }
                 case 0x5F { // OP_PUSH0
                     evmGasLeft := chargeGas(evmGasLeft, 2)
             
@@ -5351,7 +5406,6 @@ object "EVMInterpreter" {
             
                     offset, sp := popStackItem(sp)
                     size, sp := popStackItem(sp)
-            
             
                     checkOverflow(offset,size)
                     //checkMemOverflow(add(offset,size))
