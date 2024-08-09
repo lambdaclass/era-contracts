@@ -1,14 +1,15 @@
 // hardhat import should be the first import in the file
-import type { CompilerPaths } from "./utils";
-import { spawn, compilerLocation, prepareCompilerPaths, getSolcLocation } from "./utils";
-import * as fs from "fs";
 import { Command } from "commander";
+import * as fs from "fs";
+import type { CompilerPaths } from "./utils";
+import { compilerLocation, prepareCompilerPaths, spawn } from "./utils";
 
 const COMPILER_VERSION = "1.3.18";
 const IS_COMPILER_PRE_RELEASE = true;
 
 export async function compileYul(paths: CompilerPaths, file: string) {
-  const solcCompilerPath = await getSolcLocation();
+  // const solcCompilerPath = await getSolcLocation();
+  const solcCompilerPath = "/root/.cache/hardhat-nodejs/compilers-v2/zksolc";
 
   const zksolcLocation = await compilerLocation(COMPILER_VERSION, IS_COMPILER_PRE_RELEASE);
   await spawn(
