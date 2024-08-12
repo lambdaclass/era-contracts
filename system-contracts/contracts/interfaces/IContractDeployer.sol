@@ -40,6 +40,8 @@ interface IContractDeployer {
 
     event AccountVersionUpdated(address indexed accountAddress, AccountAbstractionVersion aaVersion);
 
+    event EVMProxyHashUpdated(bytes32 indexed oldHash, bytes32 indexed newHash);
+
     function getNewAddressCreate2(
         address _sender,
         bytes32 _bytecodeHash,
@@ -88,4 +90,16 @@ interface IContractDeployer {
 
     /// @notice Can be called by an account to update its nonce ordering
     function updateNonceOrdering(AccountNonceOrdering _nonceOrdering) external;
+
+    function createEVM(bytes calldata _initCode) external payable returns (address newAddress);
+
+    function create2EVM(bytes32 _salt, bytes calldata _initCode) external payable returns (address);
+
+    function createEVMInternal(address _newAddress, bytes calldata _initCode) external payable;
+
+    function evmCodeHash(address) external view returns (bytes32);
+
+    function setDeployedCode(uint256 constructorGasLeft, bytes calldata newDeployedCode) external;
+
+    function constructorReturnGas() external view returns (uint256);
 }
