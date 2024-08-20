@@ -489,11 +489,6 @@ for { } true { } {
             evmGasLeft := chargeGas(evmGasLeft, 2500)
         }
 
-        // TODO: check, the .sol uses extcodesize directly, but it doesnt seem to work
-        // if a contract is created it works, but if the address is a zkSync's contract
-        // what happens?
-        // sp := pushStackItem(sp, extcodesize(addr), evmGasLeft)
-
         switch _isEVM(addr) 
             case 0  { sp := pushStackItem(sp, extcodesize(addr), evmGasLeft) }
             default { sp := pushStackItem(sp, _fetchDeployedCodeLen(addr), evmGasLeft) }
@@ -519,9 +514,6 @@ for { } true { } {
         offset, sp := popStackItemWithoutCheck(sp)
         len, sp := popStackItemWithoutCheck(sp)
 
-        // TODO: check if these conditions are met
-        // The addition offset + size overflows.
-        // offset + size is larger than RETURNDATASIZE.
         checkOverflow(offset,len, evmGasLeft)
         if gt(add(offset, len), mload(LAST_RETURNDATA_SIZE_OFFSET())) {
             revertWithGas(evmGasLeft)
