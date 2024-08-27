@@ -196,9 +196,10 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         // Subtract 1 for EOA since the nonce has already been incremented for this transaction
         uint256 senderNonce = msg.sender == tx.origin
             ? NONCE_HOLDER_SYSTEM_CONTRACT.getMinNonce(msg.sender) - 1
-            : NONCE_HOLDER_SYSTEM_CONTRACT.incrementDeploymentNonce(msg.sender) + 1;
+            : NONCE_HOLDER_SYSTEM_CONTRACT.incrementDeploymentNonce(msg.sender);
         address newAddress = Utils.getNewAddressCreateEVM(msg.sender, senderNonce);
         _evmDeployOnAddress(newAddress, _initCode);
+        NONCE_HOLDER_SYSTEM_CONTRACT.incrementDeploymentNonce(msg.sender);
         return newAddress;
     }
 
@@ -214,7 +215,7 @@ contract ContractDeployer is IContractDeployer, ISystemContract {
         address newAddress = Utils.getNewAddressCreate2EVM(msg.sender, _salt, bytecodeHash);
 
         _evmDeployOnAddress(newAddress, _initCode);
-
+        NONCE_HOLDER_SYSTEM_CONTRACT.incrementDeploymentNonce(msg.sender);
         return newAddress;
     }
 

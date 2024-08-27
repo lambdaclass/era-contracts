@@ -1328,7 +1328,7 @@ function _fetchConstructorReturnGas() -> gasLeft {
     gasLeft := mload(0)
 }
 
-function $llvm_NoInline_llvm$_genericCreate(addr, offset, size, sp, value, evmGasLeftOld) -> result, evmGasLeft {
+function $llvm_NoInline_llvm$_genericCreate(addr, offset, size, sp, value, evmGasLeftOld, iscreate2, salt) -> result, evmGasLeft, res_addr {
     pop($llvm_AlwaysInline_llvm$_warmAddress(addr))
 
     _eraseReturndataPointer()
@@ -1349,31 +1349,71 @@ function $llvm_NoInline_llvm$_genericCreate(addr, offset, size, sp, value, evmGa
 
     _pushEVMFrame(gasForTheCall, false)
 
-    // Selector
-    mstore(sub(offset, 0x80), 0x5b16a23c)
-    // Arg1: address
-    mstore(sub(offset, 0x60), addr)
-    // Arg2: init code
-    // Where the arg starts (third word)
-    mstore(sub(offset, 0x40), 0x40)
-    // Length of the init code
-    mstore(sub(offset, 0x20), size)
+    if not(iscreate2) {
+        // Selector
+        mstore(sub(offset, 0x60), 0xff311601)
+        // Arg2: init code
+        // Where the arg starts (second word)
+        mstore(sub(offset, 0x40), 0x20)
+        // Length of the init code
+        mstore(sub(offset, 0x20), size)
 
-    let farCallAbi := getFarCallABI(
-        0,
-        0,
-        sub(offset, 0x64),
-        add(size, 0x64),
-        INF_PASS_GAS(),
-        // Only rollup is supported for now
-        0,
-        0,
-        0,
-        1
-    )
+        let farCallAbi := getFarCallABI(
+            0,
+            0,
+            sub(offset, 0x44),
+            add(size, 0x44),
+            INF_PASS_GAS(),
+            // Only rollup is supported for now
+            0,
+            0,
+            0,
+            1
+        )
 
-    let to := DEPLOYER_SYSTEM_CONTRACT()
-    result := verbatim_6i_1o("system_call", to, farCallAbi, 0, 0, 0, 0)
+        let to := DEPLOYER_SYSTEM_CONTRACT()
+        result := verbatim_6i_1o("system_call", to, farCallAbi, 0, 0, 0, 0)
+        printString("Result create: ")
+        printHex(result)
+
+    }
+
+    if iscreate2 {
+        // Selector
+        mstore(sub(offset, 0x80), 0x4e96f4c0)
+        // Arg1: salt
+        mstore(sub(offset, 0x60), salt)
+        // Arg2: init code
+        // Where the arg starts (second word)
+        mstore(sub(offset, 0x40), 0x20)
+        // Length of the init code
+        mstore(sub(offset, 0x20), size)
+
+        let farCallAbi := getFarCallABI(
+            0,
+            0,
+            sub(offset, 0x64),
+            add(size, 0x64),
+            INF_PASS_GAS(),
+            // Only rollup is supported for now
+            0,
+            0,
+            0,
+            1
+        )
+
+        let to := DEPLOYER_SYSTEM_CONTRACT()
+        result := verbatim_6i_1o("system_call", to, farCallAbi, 0, 0, 0, 0)
+
+        printString("Result create2: ")
+        printHex(result)
+    }
+
+    printString("Result: ")
+    printHex(result)
+
+    returndatacopy(0, 0, 32)
+    res_addr := mload(0)
 
     let gasLeft
     switch result
@@ -1388,18 +1428,6 @@ function $llvm_NoInline_llvm$_genericCreate(addr, offset, size, sp, value, evmGa
     evmGasLeft := chargeGas(evmGasLeftOld, gasUsed)
 
     _popEVMFrame()
-
-    switch result
-    case 1 {
-        incrementNonce(address())
-    }
-    default {
-        switch isEOA(address())
-        case 1 {
-            incrementNonce(address())
-        }
-        default {}
-    }
 
     let back
 
@@ -1520,15 +1548,15 @@ function performCreate(evmGas,oldSp,isStatic) -> evmGasLeft, sp {
 
     let addr := getNewAddress(address())
 
-    let result
-    result, evmGasLeft := $llvm_NoInline_llvm$_genericCreate(addr, offset, size, sp, value, evmGasLeft)
+    let result, res_addr
+    result, evmGasLeft, res_addr := $llvm_NoInline_llvm$_genericCreate(addr, offset, size, sp, value, evmGasLeft,false,0)
 
     switch result
         case 0 { sp := pushStackItem(sp, 0, evmGasLeft) }
-        default { sp := pushStackItem(sp, addr, evmGasLeft) }
+        default { sp := pushStackItem(sp, res_addr, evmGasLeft) }
 }
 
-function performCreate2(evmGas, oldSp, isStatic) -> evmGasLeft, sp, result, addr{
+function performCreate2(evmGas, oldSp, isStatic) -> evmGasLeft, sp, result, res_addr{
     evmGasLeft := chargeGas(evmGas, 32000)
 
     if isStatic {
@@ -1572,10 +1600,10 @@ function performCreate2(evmGas, oldSp, isStatic) -> evmGasLeft, sp, result, addr
         mstore(0x35, hashedBytecode)
     }
 
-    addr := and(
+    res_addr := and(
         keccak256(0, 0x55),
         0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
     )
-
-    result, evmGasLeft := $llvm_NoInline_llvm$_genericCreate(addr, offset, size, sp, value, evmGasLeft)
+    
+    result, evmGasLeft, res_addr := $llvm_NoInline_llvm$_genericCreate(res_addr, offset, size, sp, value, evmGasLeft,true,salt)
 }
