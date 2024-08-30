@@ -558,6 +558,7 @@ object "Bootloader" {
             /// @param txDataOffset The offset to the ABI-encoding of the structure
             /// @param resultPtr The pointer at which the result of the transaction's execution should be stored
             /// @param transactionIndex The index of the transaction in the batch
+            /// @param transactionIndexInBlock if the bootloader is running parallel mode, then the index of the transaction would be different from the transactionIndex
             /// @param isETHCall Whether the call is an ethCall.
             /// @param gasPerPubdata The number of L2 gas to charge users for each byte of pubdata
             /// On proved batch this value should always be zero
@@ -565,11 +566,12 @@ object "Bootloader" {
                 txDataOffset,
                 resultPtr,
                 transactionIndex,
+                transactionIndexInBlock,
                 isETHCall,
                 gasPerPubdata
             ) {
                 // We set the L2 block info for this particular transaction
-                setL2Block(transactionIndex)
+                setL2Block(transactionIndex, transactionIndexInBlock)
 
                 let innerTxDataOffset := add(txDataOffset, 32)
 
@@ -589,7 +591,7 @@ object "Bootloader" {
                         // - They must be the first one in the batch
                         // - They have a different type to prevent tx hash collisions and preserve the expectation that the
                         // L1->L2 transactions have priorityTxId inside them.
-                        if transactionIndex {
+                        if transactionIndexInBlock {
                             assertionError("Protocol upgrade tx not first")
                         }
 
@@ -2927,7 +2929,7 @@ object "Bootloader" {
 
             /// @notice Sets the context information for the current L2 block.
             /// @param txId The index of the transaction in the batch for which to get the L2 block information.
-            function setL2Block(txId) {
+            function setL2Block(txId, txIdInBlock) {
                 let txL2BlockPosition := add(TX_OPERATOR_L2_BLOCK_INFO_BEGIN_BYTE(), mul(TX_OPERATOR_L2_BLOCK_INFO_SIZE_BYTES(), txId))
 
                 let currentL2BlockNumber := mload(txL2BlockPosition)
@@ -2935,7 +2937,7 @@ object "Bootloader" {
                 let previousL2BlockHash := mload(add(txL2BlockPosition, 64))
                 let virtualBlocksToCreate := mload(add(txL2BlockPosition, 96))
 
-                let isFirstInBatch := iszero(txId)
+                let isFirstInBatch := iszero(txIdInBlock)
 
                 debugLog("Setting new L2 block: ", currentL2BlockNumber)
                 debugLog("Setting new L2 block: ", currentL2BlockTimestamp)
@@ -3968,8 +3970,26 @@ object "Bootloader" {
 
             let GAS_PRICE_PER_PUBDATA := 0
 
+            // ask the vm to tell if the execution is being run in parallel
+            // and if it should start a new batch
+            setHook(13)
+            let isParallel := mload(3200)
+
+            // if the transaction is parallel, then the transaction number in the block is different from the 
+            // actual transaction index in the bootloader
+            let transactionIndexInBlock := 0
+            if eq(isParallel, 1) {
+                setHook(14)
+                let txnumber := mload(3264)
+                transactionIndexInBlock := txnumber
+            } 
+
             // Initializing block params
-            {
+            // if zero it means that the bootloader is not being run in parallel
+            // or if it is, then it is the first transaction, in both cases, we want to start a new batch
+
+            if iszero(transactionIndexInBlock) {
+                debugLog("SETTING BATCH", transactionIndexInBlock)
                 /// @notice The hash of the previous batch
                 let PREV_BATCH_HASH := mload(32)
                 /// @notice The timestamp of the batch being processed
@@ -4053,6 +4073,11 @@ object "Bootloader" {
 
             let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
 
+            // if eq(isParallel, 1) {
+            //     debugLog("PTR SET", 1)
+            //     txPtr := add(txPtr, mul(TX_DESCRIPTION_SIZE(), transactionIndexInBlock))
+            // } 
+
             // At the COMPRESSED_BYTECODES_BEGIN_BYTE() the pointer to the newest bytecode to be published
             // is stored.
             mstore(COMPRESSED_BYTECODES_BEGIN_BYTE(), add(COMPRESSED_BYTECODES_BEGIN_BYTE(), 32))
@@ -4060,6 +4085,7 @@ object "Bootloader" {
             // At start storing keccak256("") as `chainedPriorityTxsHash` and 0 as `numberOfLayer1Txs`
             mstore(PRIORITY_TXS_L1_DATA_BEGIN_BYTE(), EMPTY_STRING_KECCAK())
             mstore(add(PRIORITY_TXS_L1_DATA_BEGIN_BYTE(), 32), 0)
+
 
             // Iterating through transaction descriptions
             let transactionIndex := 0
@@ -4069,6 +4095,10 @@ object "Bootloader" {
                 txPtr := add(txPtr, TX_DESCRIPTION_SIZE())
                 resultPtr := add(resultPtr, 32)
                 transactionIndex := add(transactionIndex, 1)
+                // if we are not in parallel mode, we want to take the index in block as the transactionIndex
+                if iszero(isParallel) {
+                    transactionIndexInBlock := add(transactionIndexInBlock, 1)
+                }
             } {
                 let execute := mload(txPtr)
 
@@ -4082,7 +4112,7 @@ object "Bootloader" {
                 }
 
                 let txDataOffset := mload(add(txPtr, 32))
-
+                
                 // We strongly enforce the positions of transactions
                 if iszero(eq(currentExpectedTxOffset, txDataOffset)) {
                     debugLog("currentExpectedTxOffset", currentExpectedTxOffset)
@@ -4107,7 +4137,7 @@ object "Bootloader" {
                 <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
                 {
                     debugLog("ethCall", 0)
-                    processTx(txDataOffset, resultPtr, transactionIndex, 0, GAS_PRICE_PER_PUBDATA)
+                    processTx(txDataOffset, resultPtr, transactionIndex, transactionIndexInBlock, 0, GAS_PRICE_PER_PUBDATA)
                 }
                 <!-- @endif -->
                 <!-- @if BOOTLOADER_TYPE=='playground_batch' -->
@@ -4124,9 +4154,17 @@ object "Bootloader" {
 
                     let isETHCall := eq(processFlags, 0x02)
                     debugLog("ethCall", isETHCall)
-                    processTx(txDataOffset, resultPtr, transactionIndex, isETHCall, GAS_PRICE_PER_PUBDATA)
+                    processTx(txDataOffset, resultPtr, transactionIndex, transactionIndexInBlock, isETHCall, GAS_PRICE_PER_PUBDATA)
+                    
                 }
                 <!-- @endif -->
+
+                // in parallel mode, if we are here, it is because there is a 
+                // transaction next, otherwise we would jump out of this loop in the beginning
+                if eq(isParallel, 1) {
+                    considerNewTx()                    
+                }
+
                 // Signal to the vm that the transaction execution is complete
                 setHook(VM_HOOK_TX_HAS_ENDED())
                 // Increment tx index within the system.
@@ -4157,7 +4195,7 @@ object "Bootloader" {
             //
             // The other reason why we need to set this block is so that in case of empty batch (i.e. the one which has no transactions),
             // the virtual block number as well as miniblock number are incremented.
-            setL2Block(transactionIndex)
+            setL2Block(transactionIndexInBlock, transactionIndexInBlock)
 
             callSystemContext({{RIGHT_PADDED_RESET_TX_NUMBER_IN_BLOCK_SELECTOR}})
 
