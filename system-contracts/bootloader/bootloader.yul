@@ -3961,6 +3961,20 @@ object "Bootloader" {
                 ret := 13
             }
 
+            function getIsParallel() -> ret {
+                setHook(13)
+                ret := mload(3200)
+            }
+
+            function getTransactionIndexInBlock(isParallel) -> ret {
+                ret := 0
+                if eq(isParallel, 1) {
+                    setHook(14)
+                    let txnumber := mload(3264)
+                    ret := txnumber
+                } 
+            }
+
             ////////////////////////////////////////////////////////////////////////////
             //                      Main Transaction Processing
             ////////////////////////////////////////////////////////////////////////////
@@ -3970,20 +3984,9 @@ object "Bootloader" {
 
             let GAS_PRICE_PER_PUBDATA := 0
 
-            // ask the vm to tell if the execution is being run in parallel
-            // and if it should start a new batch
-            setHook(13)
-            let isParallel := mload(3200)
-
-            // if the transaction is parallel, then the transaction number in the block is different from the 
-            // actual transaction index in the bootloader
-            let transactionIndexInBlock := 0
-            if eq(isParallel, 1) {
-                setHook(14)
-                let txnumber := mload(3264)
-                transactionIndexInBlock := txnumber
-            } 
-
+            let isParallel := getIsParallel()
+            let transactionIndexInBlock := getTransactionIndexInBlock(isParallel)
+            
             // Initializing block params
             // if zero it means that the bootloader is not being run in parallel
             // or if it is, then it is the first transaction, in both cases, we want to start a new batch
@@ -4190,7 +4193,20 @@ object "Bootloader" {
             //
             // The other reason why we need to set this block is so that in case of empty batch (i.e. the one which has no transactions),
             // the virtual block number as well as miniblock number are incremented.
-            setL2Block(transactionIndexInBlock, transactionIndexInBlock)
+
+            // We need to ask again if its is in parallel mode and for the tx index in block
+            // this is because:
+            //  -  the parallel mode can be changed during execution
+            //  -  new transactions might have been pushed from the first execution 
+            isParallel := getIsParallel()
+            switch isParallel 
+            case 1 {
+                let transactionIndexInBlock := getTransactionIndexInBlock(isParallel)
+                setL2Block(transactionIndexInBlock, transactionIndexInBlock)
+            }
+            default {
+                setL2Block(transactionIndex, transactionIndex)
+            }
 
             callSystemContext({{RIGHT_PADDED_RESET_TX_NUMBER_IN_BLOCK_SELECTOR}})
 
