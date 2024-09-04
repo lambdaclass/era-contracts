@@ -4073,11 +4073,6 @@ object "Bootloader" {
 
             let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
 
-            // if eq(isParallel, 1) {
-            //     debugLog("PTR SET", 1)
-            //     txPtr := add(txPtr, mul(TX_DESCRIPTION_SIZE(), transactionIndexInBlock))
-            // } 
-
             // At the COMPRESSED_BYTECODES_BEGIN_BYTE() the pointer to the newest bytecode to be published
             // is stored.
             mstore(COMPRESSED_BYTECODES_BEGIN_BYTE(), add(COMPRESSED_BYTECODES_BEGIN_BYTE(), 32))
