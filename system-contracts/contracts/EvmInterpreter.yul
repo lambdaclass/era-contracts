@@ -2994,8 +2994,6 @@ object "EVMInterpreter" {
                     offset, sp := popStackItemWithoutCheck(sp)
                     size, sp := popStackItemWithoutCheck(sp)
             
-                    ensureAcceptableMemLocation(offset)
-                    ensureAcceptableMemLocation(size)
                     checkOverflow(offset,size, evmGasLeft)
                     checkMemOverflowByOffset(add(offset, size), evmGasLeft)
                     evmGasLeft := chargeGas(evmGasLeft,expandMemory(add(offset,size)))
@@ -5962,8 +5960,6 @@ object "EVMInterpreter" {
                         offset, sp := popStackItemWithoutCheck(sp)
                         size, sp := popStackItemWithoutCheck(sp)
                 
-                        ensureAcceptableMemLocation(offset)
-                        ensureAcceptableMemLocation(size)
                         checkOverflow(offset,size, evmGasLeft)
                         checkMemOverflowByOffset(add(offset, size), evmGasLeft)
                         evmGasLeft := chargeGas(evmGasLeft,expandMemory(add(offset,size)))
