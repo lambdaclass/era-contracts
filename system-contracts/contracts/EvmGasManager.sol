@@ -12,7 +12,6 @@ import {SystemContractHelper} from "./libraries/SystemContractHelper.sol";
 // We consider all the contracts (including system ones) as warm.
 uint160 constant PRECOMPILES_END = 0xffff;
 
-// Denotes that passGas has been consumed
 uint256 constant INF_PASS_GAS = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
 // Transient storage prefixes
@@ -116,10 +115,8 @@ contract EvmGasManager {
 
     When conducting call:
         1. caller calls to an EVM contract pushEVMFrame with the corresponding gas
-        2. callee calls consumeEvmFrame to get the gas & make sure that subsequent callee won't be able to read it.
-        3. callee sets the return gas
-        4. callee calls popEVMFrame to return the gas to the caller & remove the frame
-
+        2. callee calls consumeEvmFrame to get the gas and determine if a call is static
+        3. calleer calls popEVMFrame to remove the frame
     */
 
     function pushEVMFrame(uint256 passGas, bool isStatic) external onlySystemEvm {
@@ -132,7 +129,7 @@ contract EvmGasManager {
         }
     }
 
-    function consumeEvmFrame() external onlySystemEvm returns (uint256 passGas, bool isStatic) {
+    function consumeEvmFrame() external view returns (uint256 passGas, bool isStatic) {
         uint256 stackDepth;
         assembly {
             stackDepth := tload(EVM_STACK_SLOT)
@@ -143,7 +140,6 @@ contract EvmGasManager {
             let stackPointer := add(EVM_STACK_SLOT, mul(2, stackDepth))
             passGas := tload(stackPointer)
             isStatic := tload(add(stackPointer, 1))
-            tstore(stackPointer, INF_PASS_GAS) // Mark as used
         }
     }
 
