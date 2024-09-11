@@ -116,7 +116,7 @@ contract EvmGasManager {
 
     When conducting call:
         1. caller calls to an EVM contract pushEVMFrame with the corresponding gas
-        2. callee calls consumeEvmFrame to get the gas & make sure that subsequent callee wont be able to read it.
+        2. callee calls consumeEvmFrame to get the gas & make sure that subsequent callee won't be able to read it.
         3. callee sets the return gas
         4. callee calls popEVMFrame to return the gas to the caller & remove the frame
 
