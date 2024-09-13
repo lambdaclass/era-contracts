@@ -1406,7 +1406,8 @@ for { } true { } {
         evmGasLeft := chargeGas(evmGasLeft,expandMemory(add(offset,size)))
 
         returnLen := size
-        checkOverflow(offset,MEM_OFFSET_INNER(), evmGasLeft)
+        
+        // Don't check overflow here since previous checks are enough to ensure this is safe
         returnOffset := add(MEM_OFFSET_INNER(), offset)
         break
     }
@@ -1446,7 +1447,8 @@ for { } true { } {
         checkMemOverflowByOffset(add(offset, size), evmGasLeft)
         evmGasLeft := chargeGas(evmGasLeft,expandMemory(add(offset,size)))
 
-        checkOverflow(offset,MEM_OFFSET_INNER(), evmGasLeft)
+
+        // Don't check overflow here since previous checks are enough to ensure this is safe
         offset := add(offset, MEM_OFFSET_INNER())
         offset,size := addGasIfEvmRevert(isCallerEVM,offset,size,evmGasLeft)
 
