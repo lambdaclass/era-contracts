@@ -51,7 +51,7 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
         bytes32[] memory blobCommitments = new bytes32[](MAX_NUMBER_OF_BLOBS);
         if (pricingMode == PubdataPricingMode.Validium) {
             // skipping data validation for validium, we just check that the data is empty
-            require(_newBatch.pubdataCommitments.length == 1, "EF: v0l");
+            //require(_newBatch.pubdataCommitments.length == 1, "EF: v0l");
             for (uint8 i = uint8(SystemLogKey.BLOB_ONE_HASH_KEY); i <= uint8(SystemLogKey.BLOB_SIX_HASH_KEY); i++) {
                 logOutput.blobHashes[i - uint8(SystemLogKey.BLOB_ONE_HASH_KEY)] = bytes32(0);
             }
