@@ -533,15 +533,7 @@ contract ContractDeployer is IContractDeployer, SystemContractBase {
         }
 
         // In case of EVM contracts returnData is the new deployed code
-        bool success = SystemContractHelper.mimicCall(uint32(gasleft()), _newAddress, msg.sender, _input, true, false);
-
-        if (!success) {
-            assembly {
-                // Just propagate the error back
-                returndatacopy(0, 0, returndatasize())
-                revert(0, returndatasize())
-            }
-        }
+        EfficientCall.mimicCall(uint32(gasleft()), _newAddress, _input, msg.sender, true, false);
 
         bytes32 codeHash = _getEvmCodeHash(_newAddress);
         require(codeHash != 0x0, "The code hash must be set after the constructor call");
