@@ -12,3 +12,6 @@
 	path = l1-contracts/lib/openzeppelin-contracts
 	url = https://github.com/Openzeppelin/openzeppelin-contracts
 	branch = release-v4.9
+[submodule "l1-contracts/lib/eigenda"]
+	path = l1-contracts/lib/eigenda
+	url = https://github.com/Layr-Labs/eigenda
