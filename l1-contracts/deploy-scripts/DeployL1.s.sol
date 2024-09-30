@@ -721,7 +721,7 @@ contract DeployL1Script is Script {
         );
         vm.serializeAddress("deployed_addresses", "validator_timelock_addr", addresses.validatorTimelock);
         vm.serializeAddress("deployed_addresses", "chain_admin", addresses.chainAdmin);
-        vm.serializeAddress("deployed_addresses", "eigen_da_verifier", addresses.eigendaVerifier);
+        vm.serializeAddress("deployed_addresses", "eigenda_verifier_addr", addresses.eigendaVerifier);
         vm.serializeString("deployed_addresses", "bridgehub", bridgehub);
         vm.serializeString("deployed_addresses", "state_transition", stateTransition);
         string memory deployedAddresses = vm.serializeString("deployed_addresses", "bridges", bridges);
