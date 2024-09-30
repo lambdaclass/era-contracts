@@ -288,7 +288,7 @@ contract DeployL1Script is Script {
     function deployEigenDAVerifier() internal {
         bytes memory bytecode = abi.encodePacked(
             type(EigenDAVerifier).creationCode,
-            abi.encode(config.contracts.eigenServiceManager)
+            abi.encode(config.deployerAddress,config.contracts.eigenServiceManager)
         );
         address contractAddress = deployViaCreate2(bytecode);
         console.log("EigenDAVerifier deployed at:", contractAddress);
