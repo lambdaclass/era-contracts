@@ -33,6 +33,7 @@ import {FeeParams, PubdataPricingMode} from "contracts/state-transition/chain-de
 import {L1SharedBridge} from "contracts/bridge/L1SharedBridge.sol";
 import {L1ERC20Bridge} from "contracts/bridge/L1ERC20Bridge.sol";
 import {DiamondProxy} from "contracts/state-transition/chain-deps/DiamondProxy.sol";
+import {EigenDAVerifier} from "contracts/eigenda/EigenDAVerifier.sol";
 
 contract DeployL1Script is Script {
     using stdToml for string;
@@ -50,6 +51,7 @@ contract DeployL1Script is Script {
         address blobVersionedHashRetriever;
         address validatorTimelock;
         address create2Factory;
+        address eigendaVerifier;
     }
 
     struct BridgehubDeployedAddresses {
@@ -113,6 +115,7 @@ contract DeployL1Script is Script {
         bytes diamondCutData;
         bytes32 bootloaderHash;
         bytes32 defaultAAHash;
+        address eigenServiceManager;
     }
 
     struct TokensConfig {
@@ -135,6 +138,7 @@ contract DeployL1Script is Script {
         deployDefaultUpgrade();
         deployGenesisUpgrade();
         deployValidatorTimelock();
+        deployEigenDAVerifier();
 
         deployGovernance();
         deployChainAdmin();
@@ -209,6 +213,7 @@ contract DeployL1Script is Script {
         config.contracts.bootloaderHash = toml.readBytes32("$.contracts.bootloader_hash");
 
         config.tokens.tokenWethAddress = toml.readAddress("$.tokens.token_weth_address");
+        config.contracts.eigenServiceManager = toml.readAddress("$.contracts.eigen_service_manager");
     }
 
     function instantiateCreate2Factory() internal {
@@ -278,6 +283,16 @@ contract DeployL1Script is Script {
         address contractAddress = deployViaCreate2(bytecode);
         console.log("ValidatorTimelock deployed at:", contractAddress);
         addresses.validatorTimelock = contractAddress;
+    }
+
+    function deployEigenDAVerifier() internal {
+        bytes memory bytecode = abi.encodePacked(
+            type(EigenDAVerifier).creationCode,
+            abi.encode(config.contracts.eigenServiceManager)
+        );
+        address contractAddress = deployViaCreate2(bytecode);
+        console.log("EigenDAVerifier deployed at:", contractAddress);
+        addresses.eigendaVerifier = contractAddress;
     }
 
     function deployGovernance() internal {
@@ -706,6 +721,7 @@ contract DeployL1Script is Script {
         );
         vm.serializeAddress("deployed_addresses", "validator_timelock_addr", addresses.validatorTimelock);
         vm.serializeAddress("deployed_addresses", "chain_admin", addresses.chainAdmin);
+        vm.serializeAddress("deployed_addresses", "eigen_da_verifier", addresses.eigendaVerifier);
         vm.serializeString("deployed_addresses", "bridgehub", bridgehub);
         vm.serializeString("deployed_addresses", "state_transition", stateTransition);
         string memory deployedAddresses = vm.serializeString("deployed_addresses", "bridges", bridges);
