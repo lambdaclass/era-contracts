@@ -25,8 +25,9 @@ contract EigenDAVerifier is Ownable {
 
     function verifyBlob(
         BlobInfo calldata blobInfo
-    ) external view {
+    ) external view returns (bool) {
         require(address(EIGEN_DA_SERVICE_MANAGER) != address(0), "EigenDAVerifier: EIGEN_DA_SERVICE_MANAGER not set");
         EigenDARollupUtils.verifyBlob(blobInfo.blobHeader, EIGEN_DA_SERVICE_MANAGER, blobInfo.blobVerificationProof);
+        return true;
     }
 }
