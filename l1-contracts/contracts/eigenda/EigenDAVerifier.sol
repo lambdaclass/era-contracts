@@ -6,7 +6,6 @@ import {IEigenDAServiceManager} from "@eigenda/eigenda-utils/interfaces/IEigenDA
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract EigenDAVerifier is Ownable {
-
     struct BlobInfo {
         IEigenDAServiceManager.BlobHeader blobHeader;
         EigenDARollupUtils.BlobVerificationProof blobVerificationProof;
@@ -23,9 +22,7 @@ contract EigenDAVerifier is Ownable {
         EIGEN_DA_SERVICE_MANAGER = IEigenDAServiceManager(_eigenDAServiceManager);
     }
 
-    function verifyBlob(
-        BlobInfo calldata blobInfo
-    ) external view returns (bool) {
+    function verifyBlob(BlobInfo calldata blobInfo) external view returns (bool) {
         require(address(EIGEN_DA_SERVICE_MANAGER) != address(0), "EigenDAVerifier: EIGEN_DA_SERVICE_MANAGER not set");
         EigenDARollupUtils.verifyBlob(blobInfo.blobHeader, EIGEN_DA_SERVICE_MANAGER, blobInfo.blobVerificationProof);
         return true;
