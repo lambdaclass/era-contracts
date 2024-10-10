@@ -27,6 +27,12 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
     /// @inheritdoc IZkSyncHyperchainBase
     string public constant override getName = "ExecutorFacet";
 
+    EigenDAVerifier immutable public eigenDAVerifier;
+
+    constructor(address _eigenDAVerifier) {
+        eigenDAVerifier = EigenDAVerifier(_eigenDAVerifier);
+    }
+
     /// @dev Process one batch commit using the previous batch StoredBatchInfo
     /// @dev returns new batch StoredBatchInfo
     /// @notice Does not change storage
@@ -54,7 +60,7 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
         if (pricingMode == PubdataPricingMode.Validium) {
             // In this scenario, pubdataCommitments has the data of the commitment and the pubdataSource, so the len should be higher or equal than 1
             require(_newBatch.pubdataCommitments.length >= 1, "EF: v0l");
-            EigenDAVerifier.verifyBlob(_newBatch.pubdataCommitments[1:]);
+            eigenDAVerifier.verifyBlob(_newBatch.pubdataCommitments[1:]);
             for (uint8 i = uint8(SystemLogKey.BLOB_ONE_HASH_KEY); i <= uint8(SystemLogKey.BLOB_SIX_HASH_KEY); i++) {
                 logOutput.blobHashes[i - uint8(SystemLogKey.BLOB_ONE_HASH_KEY)] = bytes32(0);
             }
