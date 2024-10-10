@@ -52,7 +52,6 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
 
         bytes32[] memory blobCommitments = new bytes32[](MAX_NUMBER_OF_BLOBS);
         if (pricingMode == PubdataPricingMode.Validium) {
-
             // In this scenario, pubdataCommitments has the data of the commitment and the pubdataSource, so the len should be higher or equal than 1
             require(_newBatch.pubdataCommitments.length >= 1, "EF: v0l");
             EigenDAVerifier.verifyBlob(_newBatch.pubdataCommitments[1:]);

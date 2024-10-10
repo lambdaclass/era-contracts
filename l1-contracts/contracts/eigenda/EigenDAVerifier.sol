@@ -23,7 +23,9 @@ contract EigenDAVerifier is Ownable {
         EIGEN_DA_SERVICE_MANAGER = IEigenDAServiceManager(_eigenDAServiceManager);
     }
 
-    function decodeBlobHeader(bytes calldata blobHeader) internal pure returns (IEigenDAServiceManager.BlobHeader memory) {
+    function decodeBlobHeader(
+        bytes calldata blobHeader
+    ) internal pure returns (IEigenDAServiceManager.BlobHeader memory) {
         uint32 offset = 0;
         // Decode x
         uint32 xLen = uint32(bytes4(blobHeader[0:4]));
@@ -41,19 +43,25 @@ contract EigenDAVerifier is Ownable {
 
         // Decode quorumBlobParams
         uint32 quorumBlobParamsLen = uint32(bytes4(blobHeader[offset:offset + 4]));
-        IEigenDAServiceManager.QuorumBlobParam[] memory quorumBlobParams = new IEigenDAServiceManager.QuorumBlobParam[](quorumBlobParamsLen);
+        IEigenDAServiceManager.QuorumBlobParam[] memory quorumBlobParams = new IEigenDAServiceManager.QuorumBlobParam[](
+            quorumBlobParamsLen
+        );
         offset += 4;
-        for (uint256 i = 0; i < quorumBlobParamsLen; i++) { 
+        for (uint256 i = 0; i < quorumBlobParamsLen; i++) {
             quorumBlobParams[i].quorumNumber = uint8(uint32(bytes4(blobHeader[offset:offset + 4])));
-            quorumBlobParams[i].adversaryThresholdPercentage = uint8(uint32(bytes4(blobHeader[offset + 4: offset + 8])));
-            quorumBlobParams[i].confirmationThresholdPercentage = uint8(uint32(bytes4(blobHeader[offset + 8: offset + 12])));
-            quorumBlobParams[i].chunkLength = uint32(bytes4(blobHeader[offset + 12: offset + 16]));
+            quorumBlobParams[i].adversaryThresholdPercentage = uint8(uint32(bytes4(blobHeader[offset + 4:offset + 8])));
+            quorumBlobParams[i].confirmationThresholdPercentage = uint8(
+                uint32(bytes4(blobHeader[offset + 8:offset + 12]))
+            );
+            quorumBlobParams[i].chunkLength = uint32(bytes4(blobHeader[offset + 12:offset + 16]));
             offset += 16;
         }
         return IEigenDAServiceManager.BlobHeader(commitment, dataLength, quorumBlobParams);
     }
 
-    function decodeBatchHeader(bytes calldata batchHeader) internal pure returns (IEigenDAServiceManager.BatchHeader memory) {
+    function decodeBatchHeader(
+        bytes calldata batchHeader
+    ) internal pure returns (IEigenDAServiceManager.BatchHeader memory) {
         uint32 offset = 0;
         // Decode blobHeadersRoot
         bytes32 blobHeadersRoot = bytes32(batchHeader[offset:offset + 32]);
@@ -68,14 +76,24 @@ contract EigenDAVerifier is Ownable {
         offset += 4 + signedStakeForQuorumsLen;
         // Decode referenceBlockNumber
         uint32 referenceBlockNumber = uint32(bytes4(batchHeader[offset:offset + 4]));
-        return IEigenDAServiceManager.BatchHeader(blobHeadersRoot, quorumNumbers, signedStakeForQuorums, referenceBlockNumber);
+        return
+            IEigenDAServiceManager.BatchHeader(
+                blobHeadersRoot,
+                quorumNumbers,
+                signedStakeForQuorums,
+                referenceBlockNumber
+            );
     }
 
-    function decodeBatchMetadata(bytes calldata batchMetadata) internal pure returns (IEigenDAServiceManager.BatchMetadata memory) {
+    function decodeBatchMetadata(
+        bytes calldata batchMetadata
+    ) internal pure returns (IEigenDAServiceManager.BatchMetadata memory) {
         uint32 offset = 0;
         // Decode batchHeader
         uint32 batchHeaderLen = uint32(bytes4(batchMetadata[offset:offset + 4]));
-        IEigenDAServiceManager.BatchHeader memory batchHeader = decodeBatchHeader(batchMetadata[offset + 4:offset + 4 + batchHeaderLen]);
+        IEigenDAServiceManager.BatchHeader memory batchHeader = decodeBatchHeader(
+            batchMetadata[offset + 4:offset + 4 + batchHeaderLen]
+        );
         offset += 4 + batchHeaderLen;
         // Decode signatoryRecordHash
         bytes32 signatoryRecordHash = bytes32(batchMetadata[offset:offset + 32]);
@@ -85,14 +103,18 @@ contract EigenDAVerifier is Ownable {
         return IEigenDAServiceManager.BatchMetadata(batchHeader, signatoryRecordHash, confirmationBlockNumber);
     }
 
-    function decodeBlobVerificationProof(bytes calldata blobVerificationProof) internal pure returns (EigenDARollupUtils.BlobVerificationProof memory) { 
+    function decodeBlobVerificationProof(
+        bytes calldata blobVerificationProof
+    ) internal pure returns (EigenDARollupUtils.BlobVerificationProof memory) {
         // Decode batchId
         uint32 batchId = uint32(bytes4(blobVerificationProof[:4]));
         // Decode blobIndex
         uint32 blobIndex = uint32(bytes4(blobVerificationProof[4:8]));
         // Decode batchMetadata
         uint32 batchMetadataLen = uint32(bytes4(blobVerificationProof[8:12]));
-        IEigenDAServiceManager.BatchMetadata memory batchMetadata = decodeBatchMetadata(blobVerificationProof[12:batchMetadataLen]);
+        IEigenDAServiceManager.BatchMetadata memory batchMetadata = decodeBatchMetadata(
+            blobVerificationProof[12:batchMetadataLen]
+        );
         uint32 offset = 12 + batchMetadataLen;
         // Decode inclusionProof
         uint32 inclusionProofLen = uint32(bytes4(blobVerificationProof[offset:offset + 4]));
@@ -101,15 +123,18 @@ contract EigenDAVerifier is Ownable {
         // Decode quorumIndexes
         uint32 quorumIndexesLen = uint32(bytes4(blobVerificationProof[offset:offset + 4]));
         bytes memory quorumIndexes = blobVerificationProof[offset + 4:offset + 4 + quorumIndexesLen];
-        
-        return EigenDARollupUtils.BlobVerificationProof(batchId,blobIndex,batchMetadata,inclusionProof,quorumIndexes);
+
+        return
+            EigenDARollupUtils.BlobVerificationProof(batchId, blobIndex, batchMetadata, inclusionProof, quorumIndexes);
     }
 
     function decodeBlobInfo(bytes calldata blobInfo) internal pure returns (BlobInfo memory) {
         uint32 blobHeaderLen = uint32(bytes4(blobInfo[:4]));
         IEigenDAServiceManager.BlobHeader memory blobHeader = decodeBlobHeader(blobInfo[4:blobHeaderLen]);
-        EigenDARollupUtils.BlobVerificationProof memory blobVerificationProof = decodeBlobVerificationProof(blobInfo[blobHeaderLen:]);
-        return BlobInfo(blobHeader,blobVerificationProof);
+        EigenDARollupUtils.BlobVerificationProof memory blobVerificationProof = decodeBlobVerificationProof(
+            blobInfo[blobHeaderLen:]
+        );
+        return BlobInfo(blobHeader, blobVerificationProof);
     }
 
     function verifyBlob(bytes calldata blobInfo) external view {
