@@ -15,7 +15,7 @@ import {IStateTransitionManager} from "../../IStateTransitionManager.sol";
 // While formally the following import is not used, it is needed to inherit documentation from it
 import {IZkSyncHyperchainBase} from "../../chain-interfaces/IZkSyncHyperchainBase.sol";
 
-//import {EigenDAVerifier} from "../../../eigenda/EigenDAVerifier.sol";
+import {EigenDAVerifier} from "../../../eigenda/EigenDAVerifier.sol";
 
 /// @title zkSync hyperchain Executor contract capable of processing events emitted in the zkSync hyperchain protocol.
 /// @author Matter Labs
@@ -55,6 +55,7 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
 
             // In this scenario, pubdataCommitments has the data of the commitment and the pubdataSource, so the len should be higher or equal than 1
             require(_newBatch.pubdataCommitments.length >= 1, "EF: v0l");
+            EigenDAVerifier.verifyBlob(_newBatch.pubdataCommitments[1:]);
             for (uint8 i = uint8(SystemLogKey.BLOB_ONE_HASH_KEY); i <= uint8(SystemLogKey.BLOB_SIX_HASH_KEY); i++) {
                 logOutput.blobHashes[i - uint8(SystemLogKey.BLOB_ONE_HASH_KEY)] = bytes32(0);
             }
