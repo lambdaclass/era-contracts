@@ -362,7 +362,7 @@ contract DeployL1Script is Script {
     }
 
     function deployStateTransitionDiamondFacets() internal {
-        address executorFacet = deployViaCreate2(type(ExecutorFacet).creationCode);
+        address executorFacet = deployViaCreate2(abi.encodePacked(type(ExecutorFacet).creationCode,abi.encode(addresses.eigendaVerifier)));
         console.log("ExecutorFacet deployed at:", executorFacet);
         addresses.stateTransition.executorFacet = executorFacet;
 
