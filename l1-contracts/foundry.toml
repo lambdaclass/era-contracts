@@ -5,7 +5,11 @@ libs = ['node_modules', 'lib']
 remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
-    "l2-contracts/=../l2-contracts/contracts/"
+    "l2-contracts/=../l2-contracts/contracts/",
+    "@eigenda/eigenda-utils/libraries/=lib/eigenda/contracts/src/libraries/",
+    "@eigenda/eigenda-utils/interfaces/=lib/eigenda/contracts/src/interfaces/",
+    "eigenlayer-middleware/=lib/eigenda/contracts/lib/eigenlayer-middleware/src/",
+    "eigenlayer-core/=lib/eigenda/contracts/lib/eigenlayer-middleware/lib/eigenlayer-contracts/src/"
 ]
 allow_paths = ["../l2-contracts/contracts"]
 fs_permissions = [
