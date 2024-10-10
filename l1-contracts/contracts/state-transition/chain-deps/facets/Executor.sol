@@ -15,6 +15,8 @@ import {IStateTransitionManager} from "../../IStateTransitionManager.sol";
 // While formally the following import is not used, it is needed to inherit documentation from it
 import {IZkSyncHyperchainBase} from "../../chain-interfaces/IZkSyncHyperchainBase.sol";
 
+//import {EigenDAVerifier} from "../../../eigenda/EigenDAVerifier.sol";
+
 /// @title zkSync hyperchain Executor contract capable of processing events emitted in the zkSync hyperchain protocol.
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
