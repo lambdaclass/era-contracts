@@ -202,6 +202,15 @@ contract DeployL1Script is Script, DeployUtils {
             addresses.daAddresses.availL1DAValidator = config.contracts.availL1DAValidator;
         }
 
+        if (config.contracts.eigenDAL1Validator == address(0)) {
+            addresses.daAddresses.eigenDAL1Validator = deployViaCreate2(
+                Utils.readEigenDAL1ValidatorBytecode()
+            );
+            console.log("EigenDAL1Validator deployed at:", addresses.daAddresses.eigenDAL1Validator);
+        } else {
+            addresses.daAddresses.eigenDAL1Validator = config.contracts.eigenDAL1Validator;
+        }
+
         vm.startBroadcast(msg.sender);
         RollupDAManager(rollupDAManager).updateDAPair(address(rollupDAValidator), getRollupL2ValidatorAddress(), true);
         vm.stopBroadcast();
@@ -706,6 +715,11 @@ contract DeployL1Script is Script, DeployUtils {
             "deployed_addresses",
             "avail_l1_da_validator_addr",
             addresses.daAddresses.availL1DAValidator
+        );
+        vm.serializeAddress(
+            "deployed_addresses",
+            "eigenda_l1_validator_addr",
+            addresses.daAddresses.eigenDAL1Validator
         );
 
         string memory deployedAddresses = vm.serializeAddress(
