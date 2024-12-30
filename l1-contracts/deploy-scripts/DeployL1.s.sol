@@ -204,7 +204,8 @@ contract DeployL1Script is Script, DeployUtils {
 
         if (config.contracts.eigenDAL1Validator == address(0)) {
             addresses.daAddresses.eigenDAL1Validator = deployViaCreate2(
-                Utils.readEigenDAL1ValidatorBytecode()
+                Utils.readEigenDAL1ValidatorBytecode(),
+                ""
             );
             console.log("EigenDAL1Validator deployed at:", addresses.daAddresses.eigenDAL1Validator);
         } else {
