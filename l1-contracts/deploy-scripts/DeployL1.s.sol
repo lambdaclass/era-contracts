@@ -176,6 +176,15 @@ contract DeployL1Script is Script, DeployUtils {
             );
     }
 
+    function getEigenDAL2ValidatorAddress() internal returns (address) {
+        return
+            Utils.getL2AddressViaCreate2Factory(
+                bytes32(0),
+                L2ContractHelper.hashL2Bytecode(L2ContractsBytecodesLib.readEigenDAL2ValidatorBytecode()),
+                hex""
+            );
+    }
+
     function deployDAValidators() internal {
         vm.broadcast(msg.sender);
         address rollupDAManager = address(new RollupDAManager());
@@ -203,10 +212,7 @@ contract DeployL1Script is Script, DeployUtils {
         }
 
         if (config.contracts.eigenDAL1Validator == address(0)) {
-            addresses.daAddresses.eigenDAL1Validator = deployViaCreate2(
-                Utils.readEigenDAL1ValidatorBytecode(),
-                ""
-            );
+            addresses.daAddresses.eigenDAL1Validator = deployViaCreate2(Utils.readEigenDAL1ValidatorBytecode(), "");
             console.log("EigenDAL1Validator deployed at:", addresses.daAddresses.eigenDAL1Validator);
         } else {
             addresses.daAddresses.eigenDAL1Validator = config.contracts.eigenDAL1Validator;
@@ -740,6 +746,7 @@ contract DeployL1Script is Script, DeployUtils {
         vm.serializeAddress("root", "expected_rollup_l2_da_validator_addr", getRollupL2ValidatorAddress());
         vm.serializeAddress("root", "expected_no_da_validium_l2_validator_addr", getNoDAValidiumL2ValidatorAddress());
         vm.serializeAddress("root", "expected_avail_l2_da_validator_addr", getAvailL2ValidatorAddress());
+        vm.serializeAddress("root", "expected_eigenda_l2_validator_addr", getEigenDAL2ValidatorAddress());
         string memory toml = vm.serializeAddress("root", "owner_address", config.ownerAddress);
 
         vm.writeToml(toml, outputPath);
