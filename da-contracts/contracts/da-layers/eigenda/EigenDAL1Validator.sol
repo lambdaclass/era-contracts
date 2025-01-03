@@ -22,6 +22,8 @@ contract EigenDAL1Validator is IL1DAValidator {
         }
         bytes32 stateDiffHash = abi.decode(_operatorDAInput[:32], (bytes32));
 
+        output.stateDiffHash = stateDiffHash;
+
         output.blobsLinearHashes = new bytes32[](maxBlobsSupported);
         output.blobsOpeningCommitments = new bytes32[](maxBlobsSupported);
     }
