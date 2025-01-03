@@ -1031,6 +1031,10 @@ library Utils {
         bytecode = readFoundryBytecode("/../da-contracts/out/DummyAvailBridge.sol/DummyAvailBridge.json");
     }
 
+    function readDummyEigenDABridgeBytecode() internal view returns (bytes memory bytecode) {
+        bytecode = readFoundryBytecode("/../da-contracts/out/DummyEigenDABridge.sol/DummyEigenDABridge.json");
+    }
+
     function readEigenDAL1ValidatorBytecode() internal view returns (bytes memory bytecode) {
         bytecode = readFoundryBytecode("/../da-contracts/out/EigenDAL1Validator.sol/EigenDAL1Validator.json");
     }

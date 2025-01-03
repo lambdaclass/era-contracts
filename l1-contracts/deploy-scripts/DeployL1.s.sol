@@ -212,7 +212,11 @@ contract DeployL1Script is Script, DeployUtils {
         }
 
         if (config.contracts.eigenDAL1Validator == address(0)) {
-            addresses.daAddresses.eigenDAL1Validator = deployViaCreate2(Utils.readEigenDAL1ValidatorBytecode(), "");
+            address eigendaBridge = deployViaCreate2(Utils.readDummyEigenDABridgeBytecode(), "");
+            addresses.daAddresses.eigenDAL1Validator = deployViaCreate2(
+                Utils.readEigenDAL1ValidatorBytecode(),
+                abi.encode(eigendaBridge)
+            );
             console.log("EigenDAL1Validator deployed at:", addresses.daAddresses.eigenDAL1Validator);
         } else {
             addresses.daAddresses.eigenDAL1Validator = config.contracts.eigenDAL1Validator;
