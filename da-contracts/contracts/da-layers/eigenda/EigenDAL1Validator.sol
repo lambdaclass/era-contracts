@@ -5,7 +5,6 @@ pragma solidity 0.8.24;
 import {IL1DAValidator, L1DAValidatorOutput} from "../../IL1DAValidator.sol";
 import {ValL1DAWrongInputLength} from "../../DAContractsErrors.sol";
 
-
 contract EigenDAL1Validator is IL1DAValidator {
     function checkDA(
         uint256, // _chainId
