@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IEigenDABridge} from "./IEigenDABridge.sol";
-import {IVectorx} from "./IVectorx.sol";
+import {IImplementation} from "./IImplementation.sol";
 
 abstract contract EigenDAAttestationLib {
     struct AttestationData {
@@ -11,7 +11,7 @@ abstract contract EigenDAAttestationLib {
     }
 
     IEigenDABridge public bridge;
-    IVectorx public vectorx;
+    IImplementation public implementation;
 
     /// @dev Mapping from attestation leaf to attestation data.
     /// It is necessary for recovery of the state from the onchain data.
@@ -21,13 +21,13 @@ abstract contract EigenDAAttestationLib {
 
     constructor(IEigenDABridge _bridge) {
         bridge = _bridge;
-        vectorx = bridge.vectorx();
+        implementation = bridge.implementation();
     }
 
     function _attest(bytes memory input) internal virtual {
         if (!bridge.verifyBlobLeaf(input)) revert InvalidAttestationProof();
         /*attestations[input.leaf] = AttestationData(
-            vectorx.rangeStartBlocks(input.rangeHash) + uint32(input.dataRootIndex) + 1,
+            implementation.rangeStartBlocks(input.rangeHash) + uint32(input.dataRootIndex) + 1,
             uint128(input.leafIndex)
         );*/
     }

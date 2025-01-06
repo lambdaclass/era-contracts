@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
-import {IVectorx} from "./IVectorx.sol";
+import {IImplementation} from "./IImplementation.sol";
 
 interface IEigenDABridge {
     // solhint-disable-next-line gas-struct-packing
@@ -27,7 +27,7 @@ interface IEigenDABridge {
         bytes32[] dataRootProof;
         // proof of inclusion of leaf within blob/bridge root
         bytes32[] leafProof;
-        // abi.encodePacked(startBlock, endBlock) of header range commitment on vectorx
+        // abi.encodePacked(startBlock, endBlock) of header range commitment on implementation
         bytes32 rangeHash;
         // index of the data root in the commitment tree
         uint256 dataRootIndex;
@@ -41,6 +41,6 @@ interface IEigenDABridge {
         uint256 leafIndex;
     }
 
-    function vectorx() external view returns (IVectorx vectorx);
+    function implementation() external view returns (IImplementation implementation);
     function verifyBlobLeaf(bytes calldata input) external view returns (bool);
 }

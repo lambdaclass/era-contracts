@@ -3,18 +3,18 @@
 pragma solidity 0.8.24;
 
 import {IEigenDABridge} from "./IEigenDABridge.sol";
-import {IVectorx} from "./IVectorx.sol";
-import {DummyVectorX} from "./DummyVectorX.sol";
+import {IImplementation} from "./IImplementation.sol";
+import {DummyImplementation} from "./DummyImplementation.sol";
 
 contract DummyEigenDABridge is IEigenDABridge {
-    IVectorx public vectorxContract;
+    IImplementation public implementationContract;
 
     constructor() {
-        vectorxContract = new DummyVectorX();
+        implementationContract = new DummyImplementation();
     }
 
-    function vectorx() external view returns (IVectorx) {
-        return vectorxContract;
+    function implementation() external view returns (IImplementation) {
+        return implementationContract;
     }
 
     function verifyBlobLeaf(bytes calldata) external view returns (bool) {

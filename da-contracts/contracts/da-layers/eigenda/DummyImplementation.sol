@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.24;
 
-import {IVectorx} from "./IVectorx.sol";
+import {IImplementation} from "./IImplementation.sol";
 
-contract DummyVectorX is IVectorx {
+contract DummyImplementation is IImplementation {
     function rangeStartBlocks(bytes32) external view returns (uint32 startBlock) {
         return 1;
     }
