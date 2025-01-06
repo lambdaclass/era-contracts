@@ -29,10 +29,10 @@ contract EigenDAL1Validator is IL1DAValidator, EigenDAAttestationLib {
 
         output.stateDiffHash = stateDiffHash;
 
-        /*IEigenDABridge.MerkleProofInput memory input = abi.decode(operatorDAInput[32:], (IEigenDABridge.MerkleProofInput));
-        if (l2DAValidatorOutputHash != keccak256(abi.encodePacked(output.stateDiffHash, input.leaf))) 
+        IEigenDABridge.MerkleProofInput memory input = abi.decode(operatorDAInput[32:], (IEigenDABridge.MerkleProofInput));
+        /*if (l2DAValidatorOutputHash != keccak256(abi.encodePacked(output.stateDiffHash, input.leaf))) 
             revert InvalidValidatorOutputHash();*/ //TODO: Maybe we don't need this
-        _attest(operatorDAInput[32:]);
+        _attest(input);
 
         output.blobsLinearHashes = new bytes32[](maxBlobsSupported);
         output.blobsOpeningCommitments = new bytes32[](maxBlobsSupported);

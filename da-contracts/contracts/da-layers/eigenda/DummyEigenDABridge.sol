@@ -17,7 +17,7 @@ contract DummyEigenDABridge is IEigenDABridge {
         return implementationContract;
     }
 
-    function verifyBlobLeaf(bytes calldata) external view returns (bool) {
+    function verifyBlobLeaf(MerkleProofInput calldata) external view returns (bool) {
         return true;
     }
 }

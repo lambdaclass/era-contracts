@@ -24,7 +24,7 @@ abstract contract EigenDAAttestationLib {
         implementation = bridge.implementation();
     }
 
-    function _attest(bytes memory input) internal virtual {
+    function _attest(IEigenDABridge.MerkleProofInput memory input) internal virtual {
         if (!bridge.verifyBlobLeaf(input)) revert InvalidAttestationProof();
         /*attestations[input.leaf] = AttestationData(
             implementation.rangeStartBlocks(input.rangeHash) + uint32(input.dataRootIndex) + 1,
