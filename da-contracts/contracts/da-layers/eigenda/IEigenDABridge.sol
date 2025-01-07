@@ -6,11 +6,30 @@ import {IImplementation} from "./IImplementation.sol";
 interface IEigenDABridge {
     // solhint-disable-next-line gas-struct-packing
 
-    struct MerkleProofInput {
-        bytes32 batchRoot;
-        bytes32 leaf;
-        uint256 index;
+    struct BatchHeader {
+        bytes32 blobHeadersRoot;
+        bytes quorumNumbers; 
+        bytes signedStakeForQuorums; 
+        uint32 referenceBlockNumber;
+    }
+
+    struct BatchMetadata {
+        BatchHeader batchHeader; 
+        bytes32 signatoryRecordHash; 
+        uint32 confirmationBlockNumber; 
+    }
+
+    struct BlobVerificationProof {
+        uint32 batchId;
+        uint32 blobIndex;
+        BatchMetadata batchMetadata;
         bytes inclusionProof;
+        bytes quorumIndices;
+    }
+
+    struct MerkleProofInput {
+        bytes32 leaf;
+        BlobVerificationProof blobVerificationProof;
     }
 
     function implementation() external view returns (IImplementation implementation);
