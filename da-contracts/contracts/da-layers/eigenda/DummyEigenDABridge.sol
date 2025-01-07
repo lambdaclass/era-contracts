@@ -5,12 +5,15 @@ pragma solidity 0.8.24;
 import {IEigenDABridge} from "./IEigenDABridge.sol";
 import {IImplementation} from "./IImplementation.sol";
 import {DummyImplementation} from "./DummyImplementation.sol";
+import {IEigenDABatchMetadataStorage} from "@eigenda/eigenda-utils/interfaces/IEigenDABatchMetadataStorage.sol";
 
 contract DummyEigenDABridge is IEigenDABridge {
     IImplementation public implementationContract;
+    IEigenDABatchMetadataStorage public eigenDaServiceManager;
 
-    constructor() {
+    constructor(address _eigenDaServiceManager) {
         implementationContract = new DummyImplementation();
+        eigenDaServiceManager = IEigenDABatchMetadataStorage(_eigenDaServiceManager);
     }
 
     function implementation() external view returns (IImplementation) {
@@ -25,6 +28,7 @@ contract DummyEigenDABridge is IEigenDABridge {
         // Inspired by eigenlayer contracts Merkle.verifyInclusionKeccak
         // https://github.com/Layr-Labs/eigenlayer-contracts/blob/3f3f83bd194b3bdc77d06d8fe6b101fafc3bcfd5/src/contracts/libraries/Merkle.sol
         bytes32 hashedBatchMetadata = this.hashBatchMetadata(merkleProof.blobVerificationProof.batchMetadata);
+        require(hashedBatchMetadata == IEigenDABatchMetadataStorage(eigenDaServiceManager).batchIdToBatchMetadataHash(merkleProof.blobVerificationProof.batchId), "invalid batch metadata");
         uint256 index = merkleProof.blobVerificationProof.blobIndex;
         bytes memory inclusionProof = merkleProof.blobVerificationProof.inclusionProof;
         require(inclusionProof.length % 32 == 0, "proof length not multiple of 32");
