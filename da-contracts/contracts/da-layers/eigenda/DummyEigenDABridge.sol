@@ -17,9 +17,14 @@ contract DummyEigenDABridge is IEigenDABridge {
         return implementationContract;
     }
 
+    function hashBatchMetadata(BatchMetadata calldata batchMetadata) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(keccak256(abi.encode(batchMetadata.batchHeader)),batchMetadata.signatoryRecordHash,batchMetadata.confirmationBlockNumber));
+    }
+
     function verifyBlobLeaf(MerkleProofInput calldata merkleProof) external view returns (bool) {
         // Inspired by eigenlayer contracts Merkle.verifyInclusionKeccak
         // https://github.com/Layr-Labs/eigenlayer-contracts/blob/3f3f83bd194b3bdc77d06d8fe6b101fafc3bcfd5/src/contracts/libraries/Merkle.sol
+        bytes32 hashedBatchMetadata = this.hashBatchMetadata(merkleProof.blobVerificationProof.batchMetadata);
         uint256 index = merkleProof.blobVerificationProof.blobIndex;
         bytes memory inclusionProof = merkleProof.blobVerificationProof.inclusionProof;
         require(inclusionProof.length % 32 == 0, "proof length not multiple of 32");
