@@ -20,9 +20,10 @@ contract DummyEigenDABridge is IEigenDABridge {
     function verifyBlobLeaf(MerkleProofInput calldata merkleProof) external view returns (bool) {
         uint256 index = merkleProof.index;
         bytes memory inclusionProof = merkleProof.inclusionProof;
-        require(inclusionProof.length % 32 == 0, "DummyEigenDABridge VerifyBlobLeaf: proof length should be a multiple of 32");
+        require(inclusionProof.length % 32 == 0, "proof length not multiple of 32");
         bytes32 computedHash = merkleProof.leaf;
-        for (uint256 i = 32; i <= inclusionProof.length; i += 32) {
+        uint256 length = inclusionProof.length;
+        for (uint256 i = 32; i <= length; i += 32) {
             if (index % 2 == 0) {
                 // if ith bit of index is 0, then computedHash is a left sibling
                 assembly {
@@ -41,7 +42,7 @@ contract DummyEigenDABridge is IEigenDABridge {
                 }
             }
         }
-        require(computedHash == merkleProof.batchRoot, "DummyEigenDABridge VerifyBlobLeaf: invalid proof");
+        require(computedHash == merkleProof.batchRoot, "invalid proof");
         return true;
     }
 }
