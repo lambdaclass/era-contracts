@@ -18,6 +18,8 @@ contract DummyEigenDABridge is IEigenDABridge {
     }
 
     function verifyBlobLeaf(MerkleProofInput calldata merkleProof) external view returns (bool) {
+        // Inspired by eigenlayer contracts Merkle.verifyInclusionKeccak
+        // https://github.com/Layr-Labs/eigenlayer-contracts/blob/3f3f83bd194b3bdc77d06d8fe6b101fafc3bcfd5/src/contracts/libraries/Merkle.sol
         uint256 index = merkleProof.index;
         bytes memory inclusionProof = merkleProof.inclusionProof;
         require(inclusionProof.length % 32 == 0, "proof length not multiple of 32");
