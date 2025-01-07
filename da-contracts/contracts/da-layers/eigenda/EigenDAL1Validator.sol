@@ -15,7 +15,7 @@ contract EigenDAL1Validator is IL1DAValidator, EigenDAAttestationLib {
     function checkDA(
         uint256, // _chainId
         uint256, // _batchNumber
-        bytes32 // _l2DAValidatorOutputHash, // TODO: Maybe we don't need this
+        bytes32, // _l2DAValidatorOutputHash, // TODO: Maybe we don't need this
         bytes calldata operatorDAInput,
         uint256 maxBlobsSupported
     ) external override returns (L1DAValidatorOutput memory output) {
