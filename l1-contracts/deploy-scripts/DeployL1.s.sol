@@ -212,8 +212,7 @@ contract DeployL1Script is Script, DeployUtils {
         }
 
         if (config.contracts.eigenDAL1Validator == address(0)) {
-            address eigenDAServiceManagerAddress = address(0);
-            address eigendaBridge = deployViaCreate2(Utils.readDummyEigenDABridgeBytecode(), abi.encode(eigenDAServiceManagerAddress));
+            address eigendaBridge = deployViaCreate2(Utils.readDummyEigenDABridgeBytecode(), abi.encode(config.contracts.eigenDABlobVerifier));
             addresses.daAddresses.eigenDAL1Validator = deployViaCreate2(
                 Utils.readEigenDAL1ValidatorBytecode(),
                 abi.encode(eigendaBridge)

@@ -27,8 +27,26 @@ interface IEigenDABridge {
         bytes quorumIndices;
     }
 
+    struct QuorumBlobParam {
+        uint8 quorumNumber;
+        uint8 adversaryThresholdPercentage;
+        uint8 confirmationThresholdPercentage; 
+        uint32 chunkLength; 
+    }
+
+    struct G1Point {
+        uint256 X;
+        uint256 Y;
+    }
+
+    struct BlobHeader {
+        G1Point commitment; 
+        uint32 dataLength; 
+        QuorumBlobParam[] quorumBlobParams; 
+    }
+
     struct MerkleProofInput {
-        bytes32 leaf;
+        BlobHeader blobHeader;
         BlobVerificationProof blobVerificationProof;
     }
 

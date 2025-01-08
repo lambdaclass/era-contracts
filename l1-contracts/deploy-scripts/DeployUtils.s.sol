@@ -167,6 +167,7 @@ struct ContractsConfig {
     bytes32 defaultAAHash;
     address availL1DAValidator;
     address eigenDAL1Validator;
+    address eigenDABlobVerifier;
 }
 
 struct TokensConfig {
@@ -244,6 +245,10 @@ contract DeployUtils is Script {
 
         if (vm.keyExistsToml(toml, "$.contracts.eigenda_l1_validator")) {
             config.contracts.eigenDAL1Validator = toml.readAddress("$.contracts.eigenda_l1_validator");
+        }
+
+        if (vm.keyExistsToml(toml, "$.contracts.eigenda_blob_verifier_addr")) {
+            config.contracts.eigenDABlobVerifier = toml.readAddress("$.contracts.eigenda_blob_verifier_addr");
         }
 
         config.tokens.tokenWethAddress = toml.readAddress("$.tokens.token_weth_address");
