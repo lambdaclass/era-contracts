@@ -284,7 +284,7 @@ contract DeployL1Script is Script, DeployUtils {
         }
 
         if (config.contracts.eigenDAL1DAValidator == address(0)) {
-            if (config.contracts.eigenda_risczero_verifier == address(0)) {
+            if (config.contracts.eigenDARiscZeroVerifier == address(0)) {
                 console.log("EigenDARiscZeroVerifier not deployed, do not use for production");
             }
             addresses.daAddresses.eigenDARiscZeroVerifier = config.contracts.eigenDARiscZeroVerifier;
