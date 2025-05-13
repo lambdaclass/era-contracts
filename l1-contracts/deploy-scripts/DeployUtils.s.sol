@@ -212,8 +212,8 @@ abstract contract DeployUtils is Create2FactoryUtils {
             config.contracts.eigenDAL1DAValidator = toml.readAddress("$.contracts.eigenda_l1_validator");
         }
 
-        if (vm.keyExistsToml(toml, "$.contracts.eigenda_risc_zero_verifier")) {
-            config.contracts.eigenDARiscZeroVerifier = toml.readAddress("$.contracts.eigenda_risc_zero_verifier");
+        if (vm.keyExistsToml(toml, "$.contracts.eigenda_risc_zero_verifier_addr")) {
+            config.contracts.eigenDARiscZeroVerifier = toml.readAddress("$.contracts.eigenda_risc_zero_verifier_addr");
         }
 
         config.tokens.tokenWethAddress = toml.readAddress("$.tokens.token_weth_address");
