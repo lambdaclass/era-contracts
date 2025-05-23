@@ -44,7 +44,7 @@ contract EigenDAL1DAValidator is IL1DAValidator {
         // Verify the risczero proof
         risc0Verifier.verify(inclusionData.seal, inclusionData.imageId, inclusionData.journalDigest);
 
-        // Check that the eigenDAHash from the Inclusion Data (originally calculted on Risc0 guest) is correct
+        // Check that the eigenDAHash from the Inclusion Data (originally calculated on Risc0 guest) is correct
         if (l2DAValidatorOutputHash != keccak256(abi.encodePacked(stateDiffHash, inclusionData.eigenDAHash)))
             revert InvalidValidatorOutputHash();
 
