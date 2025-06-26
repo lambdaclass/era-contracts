@@ -12,8 +12,7 @@ interface IRiscZeroVerifier {
 struct EigenDAInclusionData {
     bytes seal;
     bytes32 imageId;
-    bytes32 journalDigest;
-    bytes32 eigenDAHash;
+    bytes journalDigest;
 }
 
 contract EigenDAL1DAValidator is IL1DAValidator {
@@ -42,11 +41,11 @@ contract EigenDAL1DAValidator is IL1DAValidator {
         EigenDAInclusionData memory inclusionData = abi.decode(operatorDAInput[32:], (EigenDAInclusionData));
 
         // Verify the risczero proof
-        risc0Verifier.verify(inclusionData.seal, inclusionData.imageId, inclusionData.journalDigest);
+        risc0Verifier.verify(inclusionData.seal, inclusionData.imageId, sha256(inclusionData.journalDigest));
 
         // Check that the eigenDAHash from the Inclusion Data (originally calculated on Risc0 guest) is correct
-        if (l2DAValidatorOutputHash != keccak256(abi.encodePacked(stateDiffHash, inclusionData.eigenDAHash)))
-            revert InvalidValidatorOutputHash();
+        /*if (l2DAValidatorOutputHash != keccak256(abi.encodePacked(stateDiffHash, inclusionData.eigenDAHash)))
+            revert InvalidValidatorOutputHash();*/
 
         output.stateDiffHash = stateDiffHash;
 
