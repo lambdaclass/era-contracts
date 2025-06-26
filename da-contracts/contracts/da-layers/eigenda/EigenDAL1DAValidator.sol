@@ -42,7 +42,7 @@ contract EigenDAL1DAValidator is IL1DAValidator {
         if (operatorDAInput.length < 32) {
             revert OperatorDAInputTooSmall(operatorDAInput.length, 32);
         }
-        bytes32 stateDiffHash = bytes32(operatorDAInput[:32]);
+        output.stateDiffHash = bytes32(operatorDAInput[:32]);
 
         // Decode the inclusion data from the operatorDAInput
         EigenDAInclusionData memory inclusionData = abi.decode(operatorDAInput[32:], (EigenDAInclusionData));
@@ -54,10 +54,8 @@ contract EigenDAL1DAValidator is IL1DAValidator {
         risc0Verifier.verify(inclusionData.seal, inclusionData.imageId, sha256(inclusionData.journal));
 
         // Check that the eigenDAHash from the Inclusion Data (originally calculated on Risc0 guest) is correct
-        if (l2DAValidatorOutputHash != keccak256(abi.encodePacked(stateDiffHash, journal.eigenDAHash)))
+        if (l2DAValidatorOutputHash != keccak256(abi.encodePacked(output.stateDiffHash, journal.eigenDAHash)))
             revert InvalidValidatorOutputHash();
-
-        output.stateDiffHash = stateDiffHash;
 
         output.blobsLinearHashes = new bytes32[](maxBlobsSupported);
         output.blobsOpeningCommitments = new bytes32[](maxBlobsSupported);
