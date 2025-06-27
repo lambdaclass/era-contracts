@@ -12,7 +12,6 @@ interface IRiscZeroVerifier {
 struct Journal {
     bytes32 eigenDAHash; // The hash of the EigenDA data calculated by the Risc0 guest
     bytes env_commitment; // The abi-encoded steel commitment
-    bytes inclusion_data; // The encoded EigenDA Certificate
     bytes proof; // The KZG Proof for proof of equivalence
 }
 
